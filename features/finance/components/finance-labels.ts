@@ -1,0 +1,9 @@
+import type{CashboxStatus,CashboxType,PaymentMethod,PaymentSourceType,PaymentStatus,ReceivableStatus,VoucherType}from"../types";
+export const money=(value:number)=>`${value.toLocaleString("ar-EG-u-nu-latn",{minimumFractionDigits:value%1?2:0,maximumFractionDigits:2})} ج.م`;
+export const cashboxTypeLabels:Record<CashboxType,string>={branch_cash:"نقدية فرع",branch_card:"بطاقات فرع",branch_wallet:"محفظة فرع",central_cash:"خزينة مركزية",clearing:"تسوية"};
+export const cashboxStatusLabels:Record<CashboxStatus,string>={active:"نشطة",inactive:"متوقفة",locked:"مقفلة"};
+export const paymentMethodLabels:Record<PaymentMethod,string>={cash:"نقدي",card:"بطاقة",electronic_wallet:"محفظة",bank_transfer:"تحويل بنكي",mixed:"مختلط"};
+export const paymentSourceLabels:Record<PaymentSourceType,string>={sale:"مبيعات",rental:"تأجير",maintenance:"صيانة عميل",receivable:"سداد مديونية",expense:"مصروف",payroll:"راتب",advance:"سلفة",voucher:"سند",cashbox_transfer:"تحويل خزائن",administrative:"تحصيل إداري",refund:"عكس/مرتجع"};
+export const paymentStatusLabels:Record<PaymentStatus,string>={pending:"معلق",completed:"مكتمل",partially_reversed:"معكوس جزئيًا",reversed:"معكوس",cancelled:"ملغي"};
+export const receivableStatusLabels:Record<ReceivableStatus,string>={open:"مفتوحة",partially_paid:"مسددة جزئيًا",paid:"مسددة",overdue:"متأخرة",cancelled:"ملغاة"};
+export const voucherTypeLabels:Record<VoucherType,string>={receipt:"سند قبض",payment:"سند صرف",transfer:"تحويل خزائن"};

@@ -1,0 +1,4 @@
+import { toCents } from "@/lib/utils/money";
+import type { ExpenseCategory, ExpenseRequestInput } from "../types";
+export function validateExpenseRequest(input:ExpenseRequestInput,categories:readonly ExpenseCategory[]){let amount=0;try{amount=toCents(input.amount)}catch{return{valid:false,message:"أدخل مبلغًا ماليًا صحيحًا."}}if(amount<=0)return{valid:false,message:"يجب أن يكون المبلغ أكبر من صفر."};if(!input.assignedBranchIds.includes(input.branchId))return{valid:false,message:"الفرع غير مسند للموظف."};const category=categories.find((item)=>item.id===input.categoryId&&item.active);if(!category)return{valid:false,message:"فئة المصروف غير متاحة."};if(input.description.trim().length<3||input.businessPurpose.trim().length<3)return{valid:false,message:"الوصف والغرض إلزاميان."};if(category.requiresAttachment&&!input.attachmentName?.trim())return{valid:false,message:"مرفق Mock مطلوب لهذه الفئة."};return{valid:true,message:"الطلب صحيح."}}
+

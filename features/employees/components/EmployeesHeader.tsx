@@ -1,0 +1,3 @@
+import { Filter, Plus, UsersRound } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+export function EmployeesHeader({ offline, onAdd, onFilters }: { offline: boolean; onAdd: () => void; onFilters: () => void }) { return <header className="employees-heading"><div><span><UsersRound aria-hidden size={16} />إدارة الفريق</span><h2>الموظفون</h2><p>إدارة بيانات الموظفين والأدوار والفروع المسندة دون بيانات الرواتب أو الحضور الفعلي.</p></div><div><Button type="button" icon={<Filter aria-hidden size={17} />} onClick={onFilters}>الفلاتر</Button><Button type="button" variant="primary" icon={<Plus aria-hidden size={18} />} onClick={onAdd} disabled={offline}>إضافة موظف</Button></div></header>; }

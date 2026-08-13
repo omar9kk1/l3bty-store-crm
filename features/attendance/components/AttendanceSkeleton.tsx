@@ -1,0 +1,1 @@
+export function AttendanceSkeleton() { return <div className="attendance-skeleton" aria-label="جار تحميل سجلات الحضور">{Array.from({ length: 6 }, (_, index) => <div key={index}><span /><span /><span /></div>)}</div>; }

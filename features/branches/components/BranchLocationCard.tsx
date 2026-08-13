@@ -1,0 +1,5 @@
+import { LocateFixed, MapPin } from "lucide-react";
+import { Card } from "@/components/ui/Card";
+import type { Branch } from "../types";
+
+export function BranchLocationCard({ branch }: { branch: Branch }) { return <Card className="branch-detail-card"><div className="branch-detail-card__heading"><div><span>معلومات الموقع</span><h3>العنوان ونطاق الحضور</h3></div><MapPin aria-hidden size={20} /></div><p className="branch-location-address">{branch.address}، {branch.area}، {branch.city}</p><dl className="branch-detail-list"><div><dt>الإحداثيات</dt><dd dir="ltr">{branch.latitude}, {branch.longitude}</dd></div><div><dt>نطاق الحضور</dt><dd><LocateFixed aria-hidden size={14} />{branch.geofenceRadiusMeters} متر</dd></div><div><dt>التوقيت</dt><dd>{branch.timezone}</dd></div><div><dt>الهاتف</dt><dd dir="ltr">{branch.phone || "—"}</dd></div>{branch.alternatePhone ? <div><dt>رقم بديل</dt><dd dir="ltr">{branch.alternatePhone}</dd></div> : null}</dl><small className="branches-muted">لا توجد خريطة تفاعلية في هذه المرحلة.</small></Card>; }

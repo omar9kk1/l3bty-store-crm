@@ -1,0 +1,52 @@
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    min-inline-size: 0;
+    background: #ffffff !important;
+    color: #111112 !important;
+  }
+
+  body {
+    font-size: 10pt;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .foundation-page {
+    inline-size: 100%;
+    min-block-size: auto;
+    padding: 0;
+  }
+
+  .button,
+  .rtl-indicator {
+    display: none !important;
+  }
+
+  .foundation-hero,
+  .foundation-section,
+  .foundation-card,
+  .foundation-next {
+    break-inside: avoid;
+    border-color: #e2e2e2 !important;
+    background: #ffffff !important;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+    color: #4a4b4d;
+    font-family: var(--font-latin), system-ui, sans-serif;
+    font-size: 8pt;
+  }
+}

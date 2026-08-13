@@ -1,0 +1,1 @@
+import{ShiftDetailsPage}from"@/features/shifts/components/ShiftDetailsPage";export default async function Page({params}:{params:Promise<{shiftId:string}>}){const{shiftId}=await params;return<ShiftDetailsPage shiftId={shiftId}/>}

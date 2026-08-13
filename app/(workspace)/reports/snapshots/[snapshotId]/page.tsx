@@ -1,0 +1,1 @@
+import{SnapshotViewer}from"@/features/reports/components/SnapshotViewer";export default async function Page({params}:{params:Promise<{snapshotId:string}>}){const{snapshotId}=await params;return<SnapshotViewer snapshotId={snapshotId}/>}

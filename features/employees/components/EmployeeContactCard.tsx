@@ -1,0 +1,3 @@
+import { Card } from "@/components/ui/Card";
+import type { Employee } from "../types";
+export function EmployeeContactCard({ employee }: { employee: Employee }) { return <Card className="employee-detail-card"><span>بيانات التواصل</span><h3>التواصل والطوارئ</h3><dl><div><dt>الهاتف</dt><dd dir="ltr">{employee.phone}</dd></div><div><dt>رقم بديل</dt><dd dir="ltr">{employee.alternatePhone || "—"}</dd></div><div><dt>البريد</dt><dd dir="ltr">{employee.email || "—"}</dd></div><div><dt>جهة الطوارئ</dt><dd>{employee.emergencyContactName || "—"}</dd></div><div><dt>هاتف الطوارئ</dt><dd dir="ltr">{employee.emergencyContactPhone || "—"}</dd></div><div><dt>العنوان</dt><dd>{employee.address || "—"}</dd></div></dl></Card>; }

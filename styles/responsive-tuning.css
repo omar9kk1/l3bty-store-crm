@@ -1,0 +1,203 @@
+/* Shared density and responsive corrections applied after feature styles. */
+.ui-button {
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.workspace-content :where(input, select, textarea) {
+  min-inline-size: 0;
+}
+
+.active-rental-strip {
+  overflow: hidden;
+}
+
+.active-rental-strip,
+.active-rental-strip__inner {
+  min-block-size: var(--counter-strip-height);
+  block-size: var(--counter-strip-height);
+}
+
+.active-rental-strip .rental-whatsapp-action {
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-inline-size: max-content;
+  block-size: 100%;
+}
+
+.active-rental-strip .rental-whatsapp-action .ui-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  inline-size: auto;
+  min-inline-size: max-content;
+  min-block-size: 32px;
+  block-size: 32px;
+  padding-block: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.finance-page {
+  gap: var(--space-5);
+}
+
+.finance-summary .ui-card,
+.shift-summary .ui-card {
+  align-content: space-between;
+  min-block-size: 84px;
+  padding: var(--space-4);
+}
+
+.finance-chart-grid > .ui-card {
+  min-block-size: 220px;
+  padding: var(--space-4);
+}
+
+.finance-chart-grid h3 {
+  margin: 0 0 var(--space-1);
+  font-size: 1rem;
+}
+
+/* Keep the shifts overview compact and visually balanced on wide screens. */
+.current-shift-card {
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr) auto;
+  align-items: center;
+  padding: var(--space-4);
+}
+
+.current-shift-card > div {
+  min-inline-size: 0;
+}
+
+.current-shift-card > a {
+  white-space: nowrap;
+}
+
+.shift-summary {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  inline-size: min(100%, 760px);
+  margin-inline: auto;
+}
+
+.expenses-summary .ui-card,
+.payroll-summary .ui-card,
+.reports-summary .ui-card,
+.delivery-summary .ui-card,
+.report-metrics .ui-card {
+  align-content: space-between;
+  padding: var(--space-4);
+}
+
+.report-card,
+.delivery-grid .ui-card,
+.cashbox-card,
+.receivable-card,
+.voucher-grid > .ui-card,
+.payroll-run-grid .ui-card,
+.advance-grid .ui-card,
+.payslip-history .ui-card {
+  padding: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .report-catalog,
+  .delivery-grid,
+  .payroll-run-grid,
+  .advance-grid,
+  .payslip-history {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .active-rental-strip__meta {
+    display: none;
+  }
+
+  .active-rental-strip strong {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .active-rental-strip__timer {
+    margin-inline-start: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .current-shift-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 767px) {
+  .rental-filters,
+  .sales-filters,
+  .products-filters,
+  .inventory-filters,
+  .expenses-filters,
+  .report-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sales-filters > input:first-child,
+  .products-filters > input:first-child,
+  .inventory-filters > input:first-child,
+  .products-filters > label,
+  .expenses-filters > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .shift-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    inline-size: 100%;
+  }
+
+  .shift-summary .ui-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .inventory-tabs,
+  .branches-tabs,
+  .transfer-wizard > ol {
+    max-inline-size: 100%;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: none;
+  }
+
+  .inventory-tabs::-webkit-scrollbar,
+  .branches-tabs::-webkit-scrollbar,
+  .transfer-wizard > ol::-webkit-scrollbar {
+    display: none;
+  }
+
+  .inventory-tabs > *,
+  .branches-tabs > *,
+  .transfer-wizard > ol > * {
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 359px) {
+  .rental-filters,
+  .sales-filters,
+  .products-filters,
+  .inventory-filters,
+  .expenses-filters,
+  .report-filters,
+  .activity-filters,
+  .my-activity-filters,
+  .notifications-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

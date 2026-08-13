@@ -1,0 +1,11 @@
+import type{FinancialShift,ShiftStatus}from"./types";
+const now="2026-08-06T18:30:00+03:00";
+const row=(id:string,employeeId:string,branchId:string,cashboxId:string,status:ShiftStatus,opening:number,expected:number,counted:number|null):FinancialShift=>({id,shiftNumber:`SHF-2026-${id.replace(/\D/g,"")||id.toUpperCase()}`,employeeId,branchId,cashboxId,openedAt:id==="shift-long"?"2026-08-05T20:00:00+03:00":"2026-08-06T09:00:00+03:00",openingBalance:opening,closedAt:status==="open"?null:now,expectedCash:expected,countedCash:counted,cashDifference:counted===null?0:counted-expected,expectedCard:id.includes("sales")?6412.5:0,countedCard:status==="open"?null:id.includes("sales")?6412.5:0,cardDifference:0,expectedWallet:id.includes("sales")?1400:0,countedWallet:status==="open"?null:id.includes("sales")?1400:0,walletDifference:0,totalCollections:Math.max(0,expected-opening),totalRefunds:0,totalOutgoing:0,status,openingNote:"رصيد افتتاحي Mock",closingNote:status==="open"?"":"إقفال موثق",closedByEmployeeId:status==="open"?null:employeeId,forcedCloseReason:status==="force_closed"?"إغلاق إداري بعد تعذر تواصل الموظف":"",collectionSummary:{salesAmount:id.includes("sales")?18692.5:0,rentalAmount:id.includes("rental")?190:0,maintenanceAmount:id.includes("rental")?700:0,otherReceiptAmount:0,refundsAmount:0},differenceReview:status==="closing_review"?{status:"pending",reason:counted!==null&&counted<expected?"عجز نقدي يحتاج مراجعة":"زيادة نقدية تحتاج مراجعة",decisionReason:"",reviewedByEmployeeId:null,reviewedAt:null}:null,events:[{id:`event-${id}`,type:status,at:now,byEmployeeId:employeeId,reason:"سيناريو وردية ثابت"}],createdAt:now,updatedAt:now});
+export const SHIFT_FIXTURES:readonly FinancialShift[]=[
+ row("shift-sales-open","employee-sales","branch-2","cash-branch-2","open",1000,13810, null),
+ row("shift-rental-open","employee-rental","main","cash-main","open",500,1430,null),
+ row("shift-closed","employee-sales","main","cash-main","closed",750,5250,5250),
+ row("shift-shortage","employee-rental","branch-2","cash-branch-2","closing_review",400,2100,2025),
+ row("shift-surplus","employee-dual","branch-3","cash-branch-3","closing_review",300,1800,1840),
+ row("shift-long","employee-dual","branch-2","cash-branch-2","open",600,1700,null),
+];

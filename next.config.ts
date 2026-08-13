@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The development indicator overlaps the approved floating mobile navigation.
+  devIndicators: false,
 };
 
 export default nextConfig;

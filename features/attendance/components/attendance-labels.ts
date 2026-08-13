@@ -1,0 +1,9 @@
+import type { AttendanceDayStatus, AttendanceExceptionStatus, AttendanceExceptionType, LocationStatus } from "../types";
+export const dayStatusLabels: Record<AttendanceDayStatus, string> = { present: "حاضر", late: "متأخر", absent: "غائب", missing_check_out: "انصراف مفقود", outside_geofence: "خارج النطاق", needs_review: "تحتاج مراجعة", approved_exception: "استثناء معتمد" };
+export const dayStatusTones: Record<AttendanceDayStatus, "success" | "warning" | "danger" | "info" | "accent" | "neutral"> = { present: "success", late: "warning", absent: "danger", missing_check_out: "warning", outside_geofence: "danger", needs_review: "info", approved_exception: "accent" };
+export const locationLabels: Record<LocationStatus, string> = { inside: "داخل النطاق", outside: "خارج النطاق", unavailable: "غير متاح", inaccurate: "دقة غير كافية" };
+export const exceptionStatusLabels: Record<AttendanceExceptionStatus, string> = { pending: "معلق", approved: "مقبول", rejected: "مرفوض", cancelled: "ملغي" };
+export const exceptionTypeLabels: Record<AttendanceExceptionType, string> = { camera_unavailable: "تعذر الكاميرا", location_unavailable: "تعذر الموقع", work_outside_geofence: "مهمة خارج النطاق", forgot_check_in: "نسيان الحضور", forgot_check_out: "نسيان الانصراف", technical_error: "خطأ تقني", other_branch_assignment: "تكليف في فرع آخر" };
+export const formatEgyptDate = (iso: string) => new Intl.DateTimeFormat("ar-EG-u-nu-latn", { dateStyle: "medium", timeZone: "Africa/Cairo" }).format(new Date(iso));
+export const formatEgyptTime = (iso: string | null) => iso ? new Intl.DateTimeFormat("ar-EG-u-nu-latn", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" }).format(new Date(iso)) : "—";
+export const formatMinutes = (minutes: number) => `${Math.floor(minutes / 60).toLocaleString("ar-EG-u-nu-latn")}س ${(minutes % 60).toLocaleString("ar-EG-u-nu-latn")}د`;

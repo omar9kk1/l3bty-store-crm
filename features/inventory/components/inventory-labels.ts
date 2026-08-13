@@ -1,0 +1,3 @@
+import type{InventoryMovementType}from"../types";
+export const movementLabels:Record<InventoryMovementType,string>={opening_balance:"رصيد افتتاحي",purchase_receipt:"استلام شراء",sale:"بيع",sale_return:"مرتجع بيع",maintenance_issue:"صرف صيانة",maintenance_return:"رد صيانة",transfer_dispatch:"إرسال تحويل",transfer_receive:"استلام تحويل",adjustment_in:"تسوية إضافة",adjustment_out:"تسوية خصم",stock_count_difference:"فرق جرد",damaged:"تالف",written_off:"إعدام"};
+export const inventoryMoney=(value:string|number)=>`${Number(value).toLocaleString("ar-EG-u-nu-latn",{minimumFractionDigits:2,maximumFractionDigits:2})} ج.م`;

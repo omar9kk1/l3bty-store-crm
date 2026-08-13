@@ -1,0 +1,1 @@
+"use client";import{useSyncExternalStore}from"react";import{getInventorySnapshot,subscribeInventory}from"../services/inventory-service";export function useInventory(){return useSyncExternalStore(subscribeInventory,getInventorySnapshot,getInventorySnapshot)}

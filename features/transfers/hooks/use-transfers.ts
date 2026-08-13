@@ -1,0 +1,1 @@
+"use client";import{useSyncExternalStore}from"react";import{getTransfersSnapshot,subscribeTransfers}from"../services/transfer-store";export function useTransfers(){return useSyncExternalStore(subscribeTransfers,getTransfersSnapshot,getTransfersSnapshot)}

@@ -1,0 +1,3 @@
+export type RentalAssetStatus = "available" | "selecting" | "rented" | "near_end" | "additional_time" | "maintenance" | "in_transit" | "out_of_service";
+export type RentalAssetCondition = "excellent" | "good" | "needs_inspection" | "damaged";
+export interface RentalAsset { id: string; assetNumber: string; barcode: string; name: string; category: string; branchId: string; currentLocationId: string; status: RentalAssetStatus; condition: RentalAssetCondition; operatingSeconds: number; purchaseDate: string; purchaseCost: number; currentRentalId: string | null; lastInspectionAt: string; nextInspectionAt: string; maintenanceStatus: "none" | "scheduled" | "active"; notes: string; statusHistory: readonly { id: string; status: RentalAssetStatus; at: string; reason: string }[]; }

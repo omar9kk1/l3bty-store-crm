@@ -1,0 +1,1 @@
+"use client";import{useSyncExternalStore}from"react";import{getFinanceSnapshot,subscribeFinanceStore}from"../services/finance-store";export function useFinance(){return useSyncExternalStore(subscribeFinanceStore,getFinanceSnapshot,getFinanceSnapshot)}

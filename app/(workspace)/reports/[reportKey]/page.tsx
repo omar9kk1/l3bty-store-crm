@@ -1,0 +1,1 @@
+import{Suspense}from"react";import{ReportViewer}from"@/features/reports/components/ReportViewer";export default async function Page({params}:{params:Promise<{reportKey:string}>}){const{reportKey}=await params;return<Suspense><ReportViewer reportKey={reportKey}/></Suspense>}

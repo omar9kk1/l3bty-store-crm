@@ -1,0 +1,4 @@
+import {expect,test} from "@playwright/test";
+const sizes=[{width:1920,height:1080},{width:1440,height:900},{width:1366,height:768},{width:1024,height:768},{width:834,height:1112},{width:768,height:1024},{width:390,height:844}];
+test("operations center is responsive",async({page})=>{for(const viewport of sizes){await page.setViewportSize(viewport);await page.goto("/operations");await expect(page.locator("#workspace-content").getByRole("heading",{name:"مركز العمليات"})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+1),"overflow "+viewport.width).toBe(false)}});
+test("operations filters keep actionable links",async({page})=>{await page.goto("/operations");await page.getByRole("button",{name:/ينتظر مراجعة/}).click();await expect(page.locator(".operation-task").first()).toBeVisible();await expect(page.locator(".operation-task a").first()).toHaveAttribute("href",/^\//)});

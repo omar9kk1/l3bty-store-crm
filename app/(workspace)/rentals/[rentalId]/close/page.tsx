@@ -1,0 +1,1 @@
+import{RentalOperationPage}from"@/features/rentals/components/RentalOperationPage";export default async function Page({params}:{params:Promise<{rentalId:string}>}){const{rentalId}=await params;return<RentalOperationPage rentalId={rentalId} mode="close"/>}

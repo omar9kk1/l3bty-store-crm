@@ -1,0 +1,13 @@
+import type{PermissionKey}from"@/permissions/types";
+export type ReportPeriodType="daily"|"weekly"|"monthly"|"custom";export type SnapshotStatus="draft"|"ready"|"sent"|"archived"|"cancelled";export type DeliveryStatus="pending"|"sent"|"opened"|"failed"|"cancelled";export type ReportCategory="تشغيل"|"مبيعات"|"صيانة"|"مخزون"|"مالية"|"موظفون وحضور"|"إدارة";
+export interface ReportSectionDefinition{id:string;titleAr:string;kind:"metrics"|"table"|"bar"|"donut"}
+export interface ReportDefinition{key:string;nameAr:string;descriptionAr:string;category:ReportCategory;requiredPermission:PermissionKey;allowedPeriods:readonly ReportPeriodType[];allowedFilters:readonly string[];sensitive:boolean;exportFormats:readonly("print"|"json"|"csv")[];sections:readonly ReportSectionDefinition[]}
+export interface ReportQuery{reportKey:string;periodType:ReportPeriodType;dateFrom:string;dateTo:string;branchIds:readonly string[];employeeIds:readonly string[];activityTypes:readonly string[];statuses:readonly string[];comparisonEnabled:boolean;createdByEmployeeId:string;generatedAt:string}
+export interface ReportMetric{key:string;label:string;value:string|number;unit?:string;description?:string}
+export interface ReportSection{id:string;title:string;kind:ReportSectionDefinition["kind"];metrics:readonly ReportMetric[];rows:readonly Record<string,string|number|undefined>[];summaryText:string}
+export interface ReportPayload{reportKey:string;generatedAt:string;sections:readonly ReportSection[]}
+export interface ReportSnapshot{id:string;snapshotNumber:string;reportKey:string;title:string;periodType:ReportPeriodType;dateFrom:string;dateTo:string;filters:Readonly<Record<string,string>>;branchIds:readonly string[];payload:ReportPayload;summary:readonly ReportMetric[];contentHash:string;version:number;createdByEmployeeId:string;createdAt:string;immutable:true;status:SnapshotStatus;idempotencyKey:string}
+export interface ReportDelivery{id:string;deliveryNumber:string;snapshotId:string;senderEmployeeId:string;recipientOwnerEmployeeId:string;channel:"in_app";status:DeliveryStatus;sentAt:string|null;openedAt:string|null;failedAt:string|null;failureReason:string;retryCount:number;lastRetryAt:string|null;idempotencyKey:string;createdAt:string;note:string}
+export interface ReportAudit{id:string;action:string;actorEmployeeId:string;reportKey:string;snapshotId:string|null;branchIds:readonly string[];period:string;reason:string;at:string}
+export interface ReportNotification{id:string;employeeId:string;title:string;href:string;status:"new"|"read";createdAt:string}
+export interface ReportsSnapshot{snapshots:readonly ReportSnapshot[];deliveries:readonly ReportDelivery[];audits:readonly ReportAudit[];notifications:readonly ReportNotification[]}

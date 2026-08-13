@@ -1,0 +1,2 @@
+"use client";import{useSyncExternalStore}from"react";import{EXPENSE_CATEGORY_FIXTURES,EXPENSE_FIXTURES}from"../fixtures";import{getExpenseSnapshot,subscribeExpenseStore}from"../services/expense-store";const server={expenses:EXPENSE_FIXTURES,categories:EXPENSE_CATEGORY_FIXTURES,audits:[],notifications:[]};export function useExpenses(){return useSyncExternalStore(subscribeExpenseStore,getExpenseSnapshot,()=>server)}
+

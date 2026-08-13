@@ -1,0 +1,1 @@
+import{RentalAssetDetailsPage}from"@/features/rental-assets/components/RentalAssetDetailsPage";export default async function Page({params}:{params:Promise<{assetId:string}>}){const{assetId}=await params;return<RentalAssetDetailsPage assetId={assetId}/>}

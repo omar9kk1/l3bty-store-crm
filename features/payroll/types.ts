@@ -1,0 +1,15 @@
+import type { MoneyString } from "@/lib/utils/money";
+
+export type PayrollRunStatus = "draft" | "calculating" | "pending_review" | "approved" | "partially_paid" | "paid" | "locked" | "cancelled";
+export type PayrollLineStatus = "draft" | "reviewed" | "approved" | "paid" | "held" | "corrected";
+export type SalaryType = "monthly" | "daily" | "hourly";
+export type AdvanceStatus = "draft" | "pending" | "approved" | "rejected" | "paid_to_employee" | "active_repayment" | "completed" | "cancelled";
+export interface SalaryProfile { employeeId:string; baseSalary:MoneyString; salaryType:SalaryType; effectiveFrom:string; active:boolean; overtimeEnabled:boolean; overtimeRateType:"normal"; allowances:readonly PayrollComponent[]; defaultDeductions:readonly PayrollComponent[]; commissionsEnabled:boolean }
+export interface PayrollComponent { id:string; type:"transport"|"responsibility"|"temporary"|"extra_work"|"absence"|"lateness"|"advance"|"administrative"|"shift_difference"|"other"; amount:MoneyString; reason:string; sourceType:string; sourceId:string|null; approvedBy:string|null; approvedAt:string|null }
+export interface PayrollLine { id:string; payrollRunId:string; employeeId:string; baseSalary:MoneyString; overtimeMinutes:number; overtimeRate:MoneyString; overtimeAmount:MoneyString; attendanceAdjustments:readonly PayrollComponent[]; approvedDeductions:readonly PayrollComponent[]; allowances:readonly PayrollComponent[]; commissions:MoneyString; advancesDeducted:MoneyString; grossAmount:MoneyString; totalDeductions:MoneyString; netAmount:MoneyString; status:PayrollLineStatus; note:string; paymentId:string|null }
+export interface PayrollRun { id:string; payrollNumber:string; periodStart:string; periodEnd:string; branchId:string; status:PayrollRunStatus; employeeCount:number; grossTotal:MoneyString; deductionsTotal:MoneyString; advancesTotal:MoneyString; overtimeTotal:MoneyString; netTotal:MoneyString; createdByEmployeeId:string; approvedByEmployeeId:string|null; createdAt:string; approvedAt:string|null; paidAt:string|null; lockedAt:string|null; lines:readonly PayrollLine[]; timeline:readonly PayrollTimelineEvent[] }
+export interface PayrollTimelineEvent { id:string; action:string; actorEmployeeId:string; reason:string; at:string }
+export interface Advance { id:string; advanceNumber:string; employeeId:string; branchId:string; requestedAmount:MoneyString; approvedAmount:MoneyString; remainingAmount:MoneyString; installmentAmount:MoneyString; installmentCount:number; installmentsPaid:number; requestedAt:string; approvedAt:string|null; status:AdvanceStatus; reason:string; employeeNote:string; reviewerNote:string; approvedBy:string|null; paymentId:string|null; idempotencyKey:string }
+export interface PayrollAudit { id:string; entityType:"run"|"line"|"advance"; entityId:string; action:string; actorEmployeeId:string; reason:string; at:string }
+export interface PayrollSnapshot { runs:readonly PayrollRun[]; profiles:readonly SalaryProfile[]; advances:readonly Advance[]; audits:readonly PayrollAudit[] }
+

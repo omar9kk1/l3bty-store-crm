@@ -1,0 +1,1 @@
+"use client";import{useSyncExternalStore}from"react";import{getSalesSnapshot,subscribeSalesStore}from"../services/sales-store";export function useSales(){return useSyncExternalStore(subscribeSalesStore,getSalesSnapshot,getSalesSnapshot);}

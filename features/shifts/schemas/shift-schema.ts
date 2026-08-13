@@ -1,0 +1,3 @@
+import type{CloseShiftInput,OpenShiftInput}from"../types";
+export function validateOpenShift(input:OpenShiftInput){if(!input.assignedBranchIds.includes(input.branchId))return{valid:false,message:"الفرع خارج نطاق الموظف."};if(!Number.isFinite(input.openingBalance)||input.openingBalance<0)return{valid:false,message:"الرصيد الافتتاحي غير صحيح."};return{valid:true,message:"بيانات الفتح صحيحة."}}
+export function validateCloseShift(input:CloseShiftInput){if([input.countedCash,input.countedCard,input.countedWallet].some((value)=>!Number.isFinite(value)||value<0))return{valid:false,message:"القيم الفعلية غير صحيحة."};return{valid:true,message:"بيانات الإغلاق صحيحة."}}

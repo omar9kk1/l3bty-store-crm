@@ -1,0 +1,1 @@
+import{TransferDetailsPage}from"@/features/transfers/components/TransferDetailsPage";export default async function Page({params}:{params:Promise<{transferId:string}>}){return<TransferDetailsPage transferId={(await params).transferId}/>}

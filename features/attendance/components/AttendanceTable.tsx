@@ -1,0 +1,6 @@
+import { Eye } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import type { AttendanceDay } from "../types";
+import { dayStatusLabels, dayStatusTones, formatEgyptTime, formatMinutes } from "./attendance-labels";
+export function AttendanceTable({ days, employeeNames, branchNames, onOpen }: { days: readonly AttendanceDay[]; employeeNames: Record<string, string>; branchNames: Record<string, string>; onOpen: (day: AttendanceDay) => void }) { return <div className="attendance-table-wrap"><table><thead><tr><th>الموظف</th><th>الفرع</th><th>التاريخ</th><th>الحضور</th><th>الانصراف</th><th>مدة العمل</th><th>التأخير</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>{days.map((day) => <tr key={day.id} data-attendance-row={day.id}><td><strong>{employeeNames[day.employeeId]}</strong></td><td>{branchNames[day.branchId]}</td><td><bdi>{day.workDate}</bdi></td><td>{formatEgyptTime(day.shiftStartedAt)}</td><td>{formatEgyptTime(day.shiftEndedAt)}</td><td>{formatMinutes(day.workedMinutes)}</td><td>{day.lateMinutes.toLocaleString("ar-EG-u-nu-latn")} د</td><td><Badge tone={dayStatusTones[day.status]}>{dayStatusLabels[day.status]}</Badge></td><td><Button size="sm" onClick={() => onOpen(day)} icon={<Eye aria-hidden size={15} />}>التفاصيل</Button></td></tr>)}</tbody></table></div>; }

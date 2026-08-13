@@ -1,0 +1,9 @@
+export type RentalDurationType = "fixed_15" | "fixed_30" | "fixed_45" | "fixed_60" | "custom" | "open_time";
+export type RentalStatus = "selecting" | "active" | "near_end" | "additional_time" | "completed" | "cancelled";
+export type PaymentMethod = "cash" | "card" | "wallet";
+export type RentalReminderStatus = "not_due" | "due" | "opened" | "sent_manually" | "failed_to_open" | "skipped" | "customer_phone_missing";
+export interface RentalEvent { id: string; type: "created" | "started" | "extended" | "asset_changed" | "closed" | "cancelled" | "reminder_due" | "reminder_opened" | "reminder_sent_manually" | "reminder_failed_to_open" | "reminder_skipped" | "reminder_phone_missing" | "invoice_whatsapp_opened"; at: string; by: string; note: string; }
+export interface Rental { id: string; rentalNumber: string; customerId: string; assetId: string; branchId: string; employeeId: string; status: RentalStatus; durationType: RentalDurationType; durationMinutes: number | null; selectionStartedAt: string; startedAt: string | null; expectedEndAt: string | null; closedAt: string | null; pricePerHour: number; quotedAmount: number; currentAmount: number; paidAmount: number; paymentMethod: PaymentMethod; collectionShiftId: string | null; workDate: string; fiveMinuteReminderTriggeredAt: string | null; reminderStatus: RentalReminderStatus; events: readonly RentalEvent[]; }
+export interface RentalReminderNotification { id: string; rentalId: string; employeeId: string; branchId: string; title: string; message: string; createdAt: string; read: boolean; }
+export interface NewRentalInput { customerId: string; assetId: string; branchId: string; employeeId: string; durationType: RentalDurationType; customMinutes: number; pricePerHour: number; paidAmount: number; paymentMethod: PaymentMethod; hasOpenShift: boolean; }
+export interface ServerTimeContract { source: "mock_server_authoritative"; referenceIso: string; timezone: "Africa/Cairo"; }

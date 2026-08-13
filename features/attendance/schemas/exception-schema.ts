@@ -1,0 +1,3 @@
+import type { AttendanceExceptionType } from "../types";
+export interface ExceptionFormValues { type: AttendanceExceptionType; workDate: string; branchId: string; reason: string; employeeNote: string; evidence: string; taskReference: string; }
+export function validateException(values: ExceptionFormValues) { const errors: Partial<Record<keyof ExceptionFormValues, string>> = {}; if (!values.workDate) errors.workDate = "التاريخ مطلوب."; if (!values.branchId) errors.branchId = "الفرع مطلوب."; if (!values.reason.trim()) errors.reason = "السبب مطلوب."; if (values.type === "other_branch_assignment" && !values.taskReference.trim()) errors.taskReference = "مرجع المهمة مطلوب لهذا النوع."; return { valid: Object.keys(errors).length === 0, errors }; }

@@ -1,0 +1,1 @@
+import{Suspense}from"react";import{PayrollRunDetailsPage}from"@/features/payroll/components/PayrollRunDetailsPage";export default async function Page({params}:{params:Promise<{payrollId:string}>}){const{payrollId}=await params;return<Suspense><PayrollRunDetailsPage payrollId={payrollId}/></Suspense>}

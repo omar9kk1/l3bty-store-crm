@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light;
+
+  /* Neutral ramp — DESIGN_SYSTEM §1.1 */
+  --canvas: #ececec;
+  --canvas-sunken: #e4e4e4;
+  --surface: #ffffff;
+  --surface-2: #f6f6f6;
+  --surface-3: #ededed;
+  --line: #e2e2e2;
+  --line-strong: #d0d0d0;
+  --ink: #111112;
+  --ink-2: #4a4b4d;
+  --ink-3: #8a8c8f;
+  --ink-inverse: #ffffff;
+  --overlay: rgb(17 17 18 / 32%);
+
+  --accent: #c9f24c;
+  --accent-ink: #1a1f05;
+  --accent-soft: #f1fbd4;
+
+  --status-success: #2e7d57;
+  --status-success-bg: #e8f3ee;
+  --status-info: #2b5fa8;
+  --status-info-bg: #e9f0fa;
+  --status-warning: #a9660b;
+  --status-warning-bg: #fbf0e1;
+  --status-danger: #b23838;
+  --status-danger-bg: #fbeaea;
+  --status-transfer: #6a4ba8;
+  --status-transfer-bg: #f0ebfa;
+  --status-neutral: #6c6e72;
+  --status-neutral-bg: #f0f0f0;
+
+  /* Required semantic aliases */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --surface-muted: var(--surface-2);
+  --border: var(--line);
+  --primary: var(--ink);
+  --primary-foreground: var(--ink-inverse);
+  --success: var(--status-success);
+  --warning: var(--status-warning);
+  --danger: var(--status-danger);
+  --info: var(--status-info);
+  --muted-text: var(--ink-3);
+  --focus-ring: var(--ink);
+
+  /* 4px spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  --radius-full: 999px;
+
+  --shadow-0: 0 0 0 1px var(--line);
+  --shadow-1: 0 1px 2px rgb(17 17 18 / 4%);
+  --shadow-2: 0 8px 24px rgb(17 17 18 / 6%);
+  --shadow-3: 0 16px 48px rgb(17 17 18 / 10%);
+
+  --motion-instant: 90ms ease-out;
+  --motion-fast: 120ms ease-out;
+  --motion-base: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-slow: 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Reserved shell dimensions from the approved design */
+  --sidebar-width: 16.5rem;
+  --sidebar-rail-width: 4.5rem;
+  --header-height: 4rem;
+  --header-height-mobile: 3.5rem;
+  --counter-strip-height: 3rem;
+  --connection-strip-height: 2rem;
+  --mobile-navigation-height: 4rem;
+  --sticky-offset: 0px;
+
+  /* Layer values observed in the approved prototype */
+  --z-base: 0;
+  --z-sticky: 30;
+  --z-popover: 32;
+  --z-floating: 40;
+  --z-overlay: 50;
+  --z-modal: 60;
+  --z-drawer: 70;
+
+  --page-gutter: var(--space-5);
+  --content-max-width: 90rem;
+  --content-wide-max-width: 100rem;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --page-gutter: var(--space-5);
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --page-gutter: var(--space-4);
+  }
+}

@@ -1,0 +1,8 @@
+export type ShiftStatus="open"|"closing_review"|"closed"|"force_closed"|"suspended";
+export type DifferenceReviewStatus="pending"|"accepted"|"rejected"|"needs_information"|"resolved";
+export interface ShiftCollectionSummary{salesAmount:number;rentalAmount:number;maintenanceAmount:number;otherReceiptAmount:number;refundsAmount:number}
+export interface ShiftDifferenceReview{status:DifferenceReviewStatus;reason:string;decisionReason:string;reviewedByEmployeeId:string|null;reviewedAt:string|null}
+export interface ShiftEvent{id:string;type:string;at:string;byEmployeeId:string;reason:string}
+export interface FinancialShift{id:string;shiftNumber:string;employeeId:string;branchId:string;cashboxId:string;openedAt:string;openingBalance:number;closedAt:string|null;expectedCash:number;countedCash:number|null;cashDifference:number;expectedCard:number;countedCard:number|null;cardDifference:number;expectedWallet:number;countedWallet:number|null;walletDifference:number;totalCollections:number;totalRefunds:number;totalOutgoing:number;status:ShiftStatus;openingNote:string;closingNote:string;closedByEmployeeId:string|null;forcedCloseReason:string;collectionSummary:ShiftCollectionSummary;differenceReview:ShiftDifferenceReview|null;events:readonly ShiftEvent[];createdAt:string;updatedAt:string}
+export interface OpenShiftInput{employeeId:string;branchId:string;cashboxId:string;openingBalance:number;openingNote:string;assignedBranchIds:readonly string[];idempotencyKey:string}
+export interface CloseShiftInput{shiftId:string;employeeId:string;countedCash:number;countedCard:number;countedWallet:number;closingNote:string;differenceReason:string;idempotencyKey:string}
