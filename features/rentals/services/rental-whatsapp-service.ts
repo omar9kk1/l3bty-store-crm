@@ -1,4 +1,5 @@
 import { normalizePhone } from "@/features/customers/services/normalize-phone";
+import { calculateRentalSettlement } from "./rental-rules";
 
 export interface RentalInvoiceWhatsAppInput {
   customerName: string;
@@ -55,7 +56,7 @@ function resultFor(phone: string, message: string): RentalWhatsAppLinkResult {
 
 export const browserRentalWhatsAppService: RentalWhatsAppService = {
   buildInvoiceLink(input) {
-    const remaining = Math.max(0, input.totalAmount - input.paidAmount);
+    const settlement = calculateRentalSettlement(input.totalAmount, input.paidAmount);
     const message = [
       `مرحبًا أ/ ${input.customerName}`,
       `هذه فاتورة تأجير ${input.assetName}`,
@@ -66,8 +67,9 @@ export const browserRentalWhatsAppService: RentalWhatsAppService = {
       `وقت النهاية: ${localDateTime(input.endedAt)}`,
       `المدة: ${input.durationLabel}`,
       `إجمالي التأجير: ${input.totalAmount.toLocaleString("ar-EG-u-nu-latn")} ج.م`,
-      `المدفوع: ${input.paidAmount.toLocaleString("ar-EG-u-nu-latn")} ج.م`,
-      `المتبقي: ${remaining.toLocaleString("ar-EG-u-nu-latn")} ج.م`,
+      `المبلغ المستلم: ${input.paidAmount.toLocaleString("ar-EG-u-nu-latn")} ج.م`,
+      `الباقي للعميل: ${settlement.customerChange.toLocaleString("ar-EG-u-nu-latn")} ج.م`,
+      "حالة الدفع: مدفوع",
       "",
       "شكرًا لاستخدامكم L3BTY.",
       ...(input.receiptUrl ? [input.receiptUrl] : []),

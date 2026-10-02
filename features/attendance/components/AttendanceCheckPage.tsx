@@ -16,7 +16,8 @@ import { PERMISSION_KEYS } from "@/permissions/keys";
 import { ROLE_TEMPLATES } from "@/permissions/role-templates";
 import { useAttendance } from "../hooks/use-attendance";
 import { captureAttendance } from "../services/attendance-store";
-import { nextAttendanceAction, validateAttendanceSequence } from "../services/attendance-rules";
+import { getRelevantAttendanceEvents, nextAttendanceAction, validateAttendanceSequence } from "../services/attendance-rules";
+import { getEgyptDate } from "../services/attendance-time";
 import type { AttendanceViewState } from "../types";
 import { AttendanceCameraCapture, type CameraState } from "./AttendanceCameraCapture";
 import { AttendanceLocationStatus, type LocationReading } from "./AttendanceLocationStatus";
@@ -46,7 +47,7 @@ function CheckContent() {
   const [clock, setClock] = useState(() => new Date());
   const state = (params.get("state") ?? "normal") as AttendanceViewState;
   const offline = state === "offline";
-  const employeeEvents = (state === "empty" ? [] : data.events).filter((item) => item.employeeId === employee.id);
+  const employeeEvents = getRelevantAttendanceEvents(state === "empty" ? [] : data.events, state === "empty" ? [] : data.days, employee.id, getEgyptDate());
   const action = nextAttendanceAction(employeeEvents);
   const lastEvent = [...employeeEvents].sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))[0];
   const locationChange = useCallback((value: LocationReading) => setLocation(value), []);
@@ -68,7 +69,7 @@ function CheckContent() {
   }
 
   if (state === "loading") return <AttendanceSkeleton />;
-  if (state === "error") return <Card className="attendance-state"><h3>تعذر تجهيز التسجيل</h3><p>Reference Code: ATT-CAPTURE-MOCK-503</p><Link className="ui-button ui-button--secondary ui-button--md" href="/attendance/check">إعادة المحاولة</Link></Card>;
+  if (state === "error") return <Card className="attendance-state"><h3>تعذر تجهيز التسجيل</h3><p>رمز الخطأ: ATT-CAPTURE-503</p><Link className="ui-button ui-button--secondary ui-button--md" href="/attendance/check">إعادة المحاولة</Link></Card>;
   if (!branch) return <PermissionDeniedState />;
   return (
     <div className="attendance-page attendance-check-page" data-attendance-employee={employee.id}>

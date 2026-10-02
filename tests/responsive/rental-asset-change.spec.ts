@@ -1,4 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function switchToRentalEmployee(page: Page) {
+  await page.getByRole("button", { name: /معاينة/ }).click();
+  await page.getByRole("checkbox", { name: "موظف التأجير واستلام الصيانة", exact: true }).click();
+}
 
 function timerSeconds(value: string) {
   const [hours, minutes, seconds] = value.split(":").map(Number);
@@ -8,6 +13,7 @@ function timerSeconds(value: string) {
 test("employee changes the game inside the same rental without resetting time", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/rentals/rental-open");
+  await switchToRentalEmployee(page);
 
   const timer = page.locator(".rental-hero strong");
   const before = timerSeconds((await timer.textContent())?.trim() ?? "00:00:00");

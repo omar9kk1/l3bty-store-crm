@@ -57,6 +57,28 @@
 .customer-row-menu button { display: flex; align-items: center; gap: var(--space-2); min-block-size: 40px; border: 0; border-radius: var(--radius-xs); background: transparent; padding-inline: var(--space-3); font-size: 0.8125rem; text-align: start; }
 .customer-row-menu a:hover,
 .customer-row-menu button:hover { background: var(--surface-2); }
+.customer-row-menu .customer-delete-action { color: var(--danger); }
+
+.customer-delete-form { display: grid; gap: var(--space-4); }
+.customer-delete-form label { display: grid; gap: var(--space-2); font-weight: 700; }
+.customer-delete-form textarea { inline-size: 100%; resize: vertical; }
+.customer-delete-form__identity { display: grid; gap: 4px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); padding: var(--space-4); }
+.customer-delete-form__identity span,
+.customer-delete-form__identity small { color: var(--ink-3); }
+.customer-delete-form__error { margin: 0; color: var(--danger); }
+.customer-delete-review { display: grid; gap: var(--space-3); margin-block: var(--space-4); padding: var(--space-4); border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); }
+.customer-delete-review > header,
+.customer-delete-review__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.customer-delete-review > header h3 { margin: 2px 0 0; }
+.customer-delete-review > header span,
+.customer-delete-review__row span { color: var(--ink-3); font-size: 0.8125rem; }
+.customer-delete-review__row { border-block-start: 1px solid var(--line); padding-block-start: var(--space-3); }
+.customer-delete-review__row > div { display: grid; gap: 4px; }
+.customer-delete-review__row > div:last-child { display: flex; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .customer-delete-review__row { align-items: stretch; flex-direction: column; }
+  .customer-delete-review__row > div:last-child .ui-button { flex: 1; }
+}
 
 .customers-mobile-list { display: none; }
 .customers-pagination { display: flex; align-items: center; justify-content: center; gap: var(--space-3); }

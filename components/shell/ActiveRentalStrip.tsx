@@ -12,7 +12,7 @@ import { rentalStatusLabels } from "@/features/rentals/components/rental-labels"
 import { useRentalClock } from "@/features/rentals/hooks/use-rental-clock";
 import { useRentalReminderEvaluation } from "@/features/rentals/hooks/use-rental-reminders";
 import { useRentals } from "@/features/rentals/hooks/use-rentals";
-import { canViewRentals } from "@/features/rentals/permissions";
+import { canOperateRentals, canViewRentals } from "@/features/rentals/permissions";
 import { getRentalTimerView } from "@/features/rentals/services/rental-timer-view";
 import { useShell } from "./ShellContext";
 
@@ -28,13 +28,16 @@ export function ActiveRentalStrip() {
   const customers = useCustomers();
   const branches = useBranches();
   const allowed = new Set(availableBranches.map((branch) => branch.id));
-  const routeRentalId = pathname.match(/^\/rentals\/([^/]+)/)?.[1];
+  const routeRentalId = pathname.match(/^\/rentals\/([^/]+)(?:\/(?:extend|close))?$/)?.[1];
+  const isRentalRecordRoute = Boolean(routeRentalId && routeRentalId !== "new");
   const isVisibleRental = (item: (typeof rentals)[number]) =>
     ACTIVE_RENTAL_STATUSES.includes(item.status) && (allowed.has("all") || allowed.has(item.branchId));
   const routeRental = routeRentalId
-    ? rentals.find((item) => item.id === routeRentalId && isVisibleRental(item))
+    ? rentals.find((item) => item.id === routeRentalId)
     : undefined;
-  const rental = routeRental ?? rentals.find(isVisibleRental);
+  const rental = isRentalRecordRoute
+    ? routeRental && isVisibleRental(routeRental) ? routeRental : undefined
+    : rentals.find(isVisibleRental);
   const referenceMs = useRentalClock(Boolean(visible && canViewRentals(roles) && rental?.startedAt));
   if (!visible || !canViewRentals(roles) || !rental?.startedAt) return null;
   const asset = assets.find((item) => item.id === rental.assetId);
@@ -49,9 +52,9 @@ export function ActiveRentalStrip() {
         <CarFront aria-hidden size={16} />
         <strong>{asset?.name}</strong>
         {expanded ? <span className="active-rental-strip__meta">{customer?.name} · {branch?.name} · {rentalStatusLabels[rental.status]}</span> : null}
-        {reminderVisible ? <Badge tone="warning">متبقي 5 دقائق</Badge> : null}
+        {canOperateRentals(roles) && reminderVisible ? <Badge tone="warning">متبقي 5 دقائق</Badge> : null}
         <bdi dir="ltr" className="active-rental-strip__timer" aria-label={`${timer.label} ${timer.value}`} style={{ color: timer.tone === "danger" ? "var(--status-danger)" : timer.tone === "neutral" ? "rgb(255 255 255 / 70%)" : "var(--accent)" }}>{timer.value}</bdi>
-        {reminderVisible && asset && customer && branch ? <RentalWhatsAppAction rental={rental} asset={asset} customer={customer} branch={branch} kind="reminder" compact /> : null}
+        {canOperateRentals(roles) && reminderVisible && asset && customer && branch ? <RentalWhatsAppAction rental={rental} asset={asset} customer={customer} branch={branch} kind="reminder" compact /> : null}
         <Link href={`/rentals/${rental.id}`}>التفاصيل</Link>
         <button type="button" aria-label={expanded ? "طي التفاصيل" : "عرض التفاصيل"} onClick={() => setExpanded((value) => !value)}><ChevronUp aria-hidden size={16} className={expanded ? "" : "is-collapsed"} /></button>
         <button type="button" aria-label="إخفاء عداد التأجير" onClick={() => setVisible(false)}><X aria-hidden size={16} /></button>

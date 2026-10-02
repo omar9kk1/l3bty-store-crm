@@ -1,0 +1,41 @@
+.shift-employee {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.shift-employee small {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--muted-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.shift-employee--mobile {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.shift-employee--mobile h3 {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .shift-employee--mobile {
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .shift-employee--mobile small {
+    white-space: normal;
+    text-align: center;
+  }
+}

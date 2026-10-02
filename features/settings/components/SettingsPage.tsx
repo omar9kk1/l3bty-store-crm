@@ -139,7 +139,7 @@ function SettingsAdminPage() {
 
   return <div className="settings-page">
     <header className="settings-header">
-      <div><span>إدارة النظام</span><h2>الإعدادات والسياسات</h2><p>مرجع مركزي للقيم المستخدمة حاليًا، محفوظ داخل Mock State لهذه الجلسة.</p></div>
+      <div><span>إدارة النظام</span><h2>الإعدادات والسياسات</h2><p>مرجع مركزي للقيم المستخدمة حاليًا والمحفوظة محليًا.</p></div>
       <div className="settings-header__actions">
         <Badge tone={dirty ? "warning" : "success"}>{dirty ? "تغييرات غير محفوظة" : "الإعدادات محفوظة"}</Badge>
         <Button icon={<RotateCcw size={16} />} onClick={restore}>القيم الافتراضية</Button>
@@ -174,7 +174,7 @@ function SettingsAdminPage() {
     </div>
 
     <Card className="settings-audit">
-      <header><div><History aria-hidden size={20} /><h3>سجل تغييرات الإعدادات</h3></div><Badge tone="neutral">Audit Mock</Badge></header>
+      <header><div><History aria-hidden size={20} /><h3>سجل تغييرات الإعدادات</h3></div><Badge tone="neutral">سجل التغييرات</Badge></header>
       {data.audits.length ? data.audits.map((event) => <div className="settings-audit__row" key={event.id}><div><strong>{event.reason}</strong><span>{event.changedKeys.length} قيمة · {event.actorEmployeeId}</span></div><time>{new Intl.DateTimeFormat("ar-EG-u-nu-latn", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" }).format(new Date(event.at))}</time></div>) : <div className="settings-audit__empty"><Settings2 aria-hidden size={28} /><p>لم تُحفظ تغييرات في هذه الجلسة بعد.</p></div>}
     </Card>
   </div>;

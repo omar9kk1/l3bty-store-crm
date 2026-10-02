@@ -32,42 +32,43 @@ for (const viewport of viewports) {
   });
 }
 
-test("role preview applies role union and branch scope", async ({ page }) => {
+test("role preview switches between single roles and applies branch scope", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/dashboard");
+  await expect(page.getByLabel("قائمة المستخدم")).toContainText("المالك");
+  await expect(page.getByLabel("قائمة المستخدم")).not.toContainText("أحمد حسن");
   await page.getByRole("button", { name: /معاينة/ }).click();
   await page.getByLabel("موظف المبيعات").click();
-  await page.getByLabel("مالك النشاط").click();
+  await expect(page.getByLabel("قائمة المستخدم")).toContainText("المبيعات");
+  await expect(page.getByLabel("مالك النشاط")).not.toBeChecked();
+  await expect(page.getByLabel("موظف المبيعات")).toBeChecked();
 
   await expect(page.getByRole("link", { name: "نقطة البيع" })).toBeVisible();
   await expect(page.getByRole("link", { name: "التأجير", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "الفروع والمواقع" })).toHaveCount(0);
-  await expect(page.getByLabel("اختيار الفرع").locator("option")).toHaveCount(3);
-  await page.getByLabel("اختيار الفرع").selectOption("branch-2");
-  await expect(page.getByLabel("اختيار الفرع")).toHaveValue("branch-2");
+  await expect(page.getByLabel("الفرع المسند")).toContainText("BR01");
+  await expect(page.getByLabel("اختيار الفرع")).toHaveCount(0);
 
   await page.getByLabel("موظف التأجير واستلام الصيانة").click();
+  await expect(page.getByLabel("موظف المبيعات")).not.toBeChecked();
+  await expect(page.getByLabel("موظف التأجير واستلام الصيانة")).toBeChecked();
   await expect(page.getByRole("link", { name: "التأجير", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "نقطة البيع" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "نقطة البيع" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "الرواتب" })).toHaveCount(0);
 });
 
-test("single assigned branch is fixed while multi-branch context is restricted", async ({ page }) => {
+test("technician work location is limited to central workshops", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/dashboard");
   await page.getByRole("button", { name: /معاينة/ }).click();
   await page.getByRole("checkbox", { name: "فني الصيانة", exact: true }).click();
-  await page.getByLabel("مالك النشاط").click();
-  await expect(page.getByLabel("الفرع المسند")).toContainText("الورشة المركزية");
+  await expect(page.getByLabel("الورشة المركزية", { exact: true })).toContainText("ورشة عمل الفني");
+  await expect(page.getByLabel("الورشة المركزية", { exact: true })).not.toContainText("كل الفروع");
+  const workshopSelector = page.locator(".role-preview__panel").getByLabel("اختيار الورشة المركزية");
+  await expect(workshopSelector.locator("option")).not.toHaveCount(0);
+  await expect(workshopSelector.locator('option[value="all"]')).toHaveCount(0);
+  await expect(workshopSelector.locator('option[value="main"]')).toHaveCount(0);
   await expect(page.getByLabel("اختيار الفرع")).toHaveCount(0);
-
-  await page.getByLabel("موظف المبيعات").click();
-  await page.getByRole("checkbox", { name: "فني الصيانة", exact: true }).click();
-  const selector = page.getByLabel("اختيار الفرع");
-  await expect(selector.locator("option")).toHaveCount(3);
-  await expect(selector.locator('option[value="all"]')).toHaveCount(0);
-  await selector.selectOption("branch-3");
-  await expect(selector).toHaveValue("branch-3");
 });
 
 test("mobile more drawer exposes remaining permitted destinations", async ({ page }) => {
@@ -75,7 +76,6 @@ test("mobile more drawer exposes remaining permitted destinations", async ({ pag
   await page.goto("/dashboard");
   await page.getByRole("button", { name: /معاينة/ }).click();
   await page.getByLabel("موظف المبيعات").click();
-  await page.getByLabel("مالك النشاط").click();
   await page.getByRole("dialog", { name: "معاينة الأدوار" }).getByRole("button", { name: "إغلاق" }).click();
   await page.getByRole("button", { name: "المزيد" }).click();
   const more = page.getByRole("dialog", { name: "المزيد" });

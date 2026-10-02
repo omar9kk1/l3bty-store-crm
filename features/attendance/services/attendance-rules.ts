@@ -17,4 +17,11 @@ export function validateAttendanceSequence(events: readonly AttendanceEvent[], r
 }
 export function resolveShiftWorkDate(checkInIso: string, checkOutIso: string) { void checkOutIso; return checkInIso.slice(0, 10); }
 export function nextAttendanceAction(events: readonly AttendanceEvent[]): AttendanceEventType { const last = [...events].sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))[0]; return last?.type === "check_in" ? "check_out" : "check_in"; }
+export function getRelevantAttendanceEvents(events: readonly AttendanceEvent[], days: readonly AttendanceDay[], employeeId: string, workDate: string) {
+  const relevant = events.filter((event) => event.employeeId === employeeId && event.capturedAt.slice(0, 10) === workDate);
+  const openDay = days.find((day) => day.employeeId === employeeId && day.shiftStartedAt && !day.shiftEndedAt);
+  if (!openDay?.checkInEventId || relevant.some((event) => event.id === openDay.checkInEventId)) return relevant;
+  const openEvent = events.find((event) => event.id === openDay.checkInEventId);
+  return openEvent ? [...relevant, openEvent] : relevant;
+}
 export function summarizeDays(days: readonly AttendanceDay[]) { return { present: days.filter((d) => d.status === "present").length, late: days.filter((d) => d.status === "late").length, absent: days.filter((d) => d.status === "absent").length, outside: days.filter((d) => d.status === "outside_geofence").length, needsReview: days.filter((d) => d.reviewStatus === "pending").length, missingCheckout: days.filter((d) => d.status === "missing_check_out").length }; }

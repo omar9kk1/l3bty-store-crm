@@ -2,7 +2,7 @@ import type { MoneyString } from "@/lib/utils/money";
 
 export type PayrollRunStatus = "draft" | "calculating" | "pending_review" | "approved" | "partially_paid" | "paid" | "locked" | "cancelled";
 export type PayrollLineStatus = "draft" | "reviewed" | "approved" | "paid" | "held" | "corrected";
-export type SalaryType = "monthly" | "daily" | "hourly";
+export type SalaryType = "monthly" | "weekly" | "daily" | "hourly";
 export type AdvanceStatus = "draft" | "pending" | "approved" | "rejected" | "paid_to_employee" | "active_repayment" | "completed" | "cancelled";
 export interface SalaryProfile { employeeId:string; baseSalary:MoneyString; salaryType:SalaryType; effectiveFrom:string; active:boolean; overtimeEnabled:boolean; overtimeRateType:"normal"; allowances:readonly PayrollComponent[]; defaultDeductions:readonly PayrollComponent[]; commissionsEnabled:boolean }
 export interface PayrollComponent { id:string; type:"transport"|"responsibility"|"temporary"|"extra_work"|"absence"|"lateness"|"advance"|"administrative"|"shift_difference"|"other"; amount:MoneyString; reason:string; sourceType:string; sourceId:string|null; approvedBy:string|null; approvedAt:string|null }

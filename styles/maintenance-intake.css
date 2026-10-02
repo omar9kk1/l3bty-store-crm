@@ -1,0 +1,14 @@
+.maintenance-quick-customer {
+  align-self: end;
+  justify-self: start;
+  inline-size: auto;
+  min-inline-size: 180px;
+  min-block-size: 44px;
+}
+
+@media (max-width: 767px) {
+  .maintenance-quick-customer {
+    justify-self: stretch;
+    inline-size: 100%;
+  }
+}

@@ -17,9 +17,9 @@ interface CustomersFiltersProps {
 }
 
 const statusOptions = [["all", "كل الحالات"], ["active", "نشط"], ["inactive", "غير نشط"], ["blocked", "موقوف"]] as const;
-const flagOptions = [["all", "كل التنبيهات"], ["debt", "لديه مديونية"], ["rental_ban", "ممنوع من التأجير"], ["needs_review", "يحتاج مراجعة"]] as const;
+const flagOptions = [["all", "كل التنبيهات"], ["rental_ban", "ممنوع من التأجير"], ["needs_review", "يحتاج مراجعة"]] as const;
 const activityLabels: Record<CustomerActivityType | "all", string> = { all: "كل الأنشطة", sales: "بيع", rental: "تأجير", maintenance: "صيانة" };
-const sortOptions = [["recent", "الأحدث نشاطًا"], ["name", "الاسم"], ["balance", "الأعلى مديونية"]] as const;
+const sortOptions = [["recent", "الأحدث نشاطًا"], ["name", "الاسم"]] as const;
 
 function FilterSection({ label, value, options, onChange }: { label: string; value: string; options: readonly (readonly [string, string])[]; onChange: (value: string) => void }) {
   return (
@@ -34,15 +34,13 @@ function FilterSection({ label, value, options, onChange }: { label: string; val
 
 export function CustomersFilters(props: CustomersFiltersProps) {
   const activityOptions = [["all", activityLabels.all], ...props.access.allowedActivityTypes.map((type) => [type, activityLabels[type]])] as [string, string][];
-  const visibleFlags = props.access.canViewFinancial ? flagOptions : flagOptions.filter(([value]) => value === "all" || value === "needs_review");
-  const visibleSorts = props.access.canViewFinancial ? sortOptions : sortOptions.filter(([value]) => value !== "balance");
   return (
     <Drawer open={props.open} onOpenChange={props.onOpenChange} title="تصفية العملاء" description="تُطبق النتائج ضمن صلاحياتك ونطاق الفرع الحالي." variant="auxiliary">
       <FilterSection label="الفرع" value={props.branchId} options={props.branches.map((branch) => [branch.id, branch.nameAr])} onChange={props.onBranchChange} />
       <FilterSection label="الحالة" value={props.status} options={statusOptions} onChange={(value) => props.onFilterChange("status", value)} />
-      <FilterSection label="التنبيه" value={props.flag} options={visibleFlags} onChange={(value) => props.onFilterChange("flag", value)} />
+      <FilterSection label="التنبيه" value={props.flag} options={flagOptions} onChange={(value) => props.onFilterChange("flag", value)} />
       <FilterSection label="نوع النشاط" value={props.activity} options={activityOptions} onChange={(value) => props.onFilterChange("activity", value)} />
-      <FilterSection label="الترتيب" value={props.sort} options={visibleSorts} onChange={(value) => props.onFilterChange("sort", value)} />
+      <FilterSection label="الترتيب" value={props.sort} options={sortOptions} onChange={(value) => props.onFilterChange("sort", value)} />
     </Drawer>
   );
 }

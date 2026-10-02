@@ -9,7 +9,7 @@ export function DashboardEmptyState() {
 }
 
 export function DashboardErrorState({ onRetry }: { onRetry: () => void }) {
-  return <section className="dashboard-state dashboard-state--error"><span><AlertTriangle size={24} /></span><h2>تعذر تحميل لوحة التحكم</h2><p>حدث خطأ تجريبي أثناء تجهيز البيانات.</p><button type="button" onClick={onRetry}><RefreshCcw size={16} />إعادة المحاولة</button></section>;
+  return <section className="dashboard-state dashboard-state--error"><span><AlertTriangle size={24} /></span><h2>تعذر تحميل لوحة التحكم</h2><p>حدث خطأ أثناء تجهيز البيانات.</p><button type="button" onClick={onRetry}><RefreshCcw size={16} />إعادة المحاولة</button></section>;
 }
 
 export function DashboardOfflineState() {

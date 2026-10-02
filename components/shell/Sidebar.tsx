@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
+import { isNavigationItemActive } from "@/permissions/navigation-policy";
 import type { NavigationItem, NavigationSection } from "@/permissions/types";
 import { SidebarSection } from "./SidebarSection";
 
 const sectionOrder: NavigationSection[] = [
-  "الرئيسية", "التشغيل", "المبيعات", "الصيانة", "المخزون", "المالية", "الموظفون", "الإدارة",
+  "الرئيسية", "التشغيل", "المبيعات", "الصيانة", "ألعاب واحتياجات", "المخزون", "المالية", "الموظفون", "الإدارة",
 ];
 
 export function Sidebar({
@@ -25,15 +26,16 @@ export function Sidebar({
   mode?: "desktop" | "drawer";
   onNavigate?: () => void;
 }) {
-  const [openSections, setOpenSections] = useState<NavigationSection[]>(sectionOrder);
+  const activeSection = navigation.find((item) => isNavigationItemActive(item, pathname))?.section ?? null;
+  const [sectionChoice, setSectionChoice] = useState<{ pathname: string; section: NavigationSection | null }>({ pathname, section: activeSection });
+  const selectedSection = sectionChoice.pathname === pathname ? sectionChoice.section : activeSection;
+  const openSection = selectedSection && navigation.some((item) => item.section === selectedSection)
+    ? selectedSection
+    : activeSection;
   const effectiveCollapsed = mode === "drawer" ? false : collapsed;
 
   function toggleSection(section: NavigationSection) {
-    setOpenSections((current) =>
-      current.includes(section)
-        ? current.filter((item) => item !== section)
-        : [...current, section],
-    );
+    setSectionChoice({ pathname, section: openSection === section ? null : section });
   }
 
   return (
@@ -52,7 +54,7 @@ export function Sidebar({
               items={items}
               pathname={pathname}
               collapsed={effectiveCollapsed}
-              open={openSections.includes(section)}
+              open={openSection === section}
               onToggle={() => toggleSection(section)}
               onNavigate={onNavigate}
             />

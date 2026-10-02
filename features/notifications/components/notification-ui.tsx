@@ -1,5 +1,6 @@
 import { AlertTriangle, BellRing, CircleAlert, Info } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import type { Branch } from "@/features/branches/types";
 import type { AppNotification, NotificationPriority } from "../types";
 
 export const priorityLabels: Record<NotificationPriority, string> = { low: "منخفضة", normal: "عادية", high: "مرتفعة", urgent: "عاجلة" };
@@ -7,6 +8,13 @@ export const categoryLabels: Record<AppNotification["category"], string> = { ren
 export const priorityTone = (priority: NotificationPriority) => priority === "urgent" ? "danger" as const : priority === "high" ? "warning" as const : priority === "normal" ? "info" as const : "neutral" as const;
 export function PriorityIcon({ priority }: { priority: NotificationPriority }) { return priority === "urgent" ? <CircleAlert aria-hidden /> : priority === "high" ? <AlertTriangle aria-hidden /> : priority === "normal" ? <BellRing aria-hidden /> : <Info aria-hidden />; }
 export function NotificationPriorityBadge({ priority }: { priority: NotificationPriority }) { return <Badge tone={priorityTone(priority)}>{priorityLabels[priority]}</Badge>; }
+export function notificationBranchLabel(branchId: string, branches: readonly Pick<Branch, "id" | "name" | "type">[]) {
+  if (branchId === "all") return "كل الفروع";
+  if (branchId === "workshop") {
+    return branches.find((branch) => branch.type === "central_workshop")?.name ?? "الورشة المركزية";
+  }
+  return branches.find((branch) => branch.id === branchId)?.name ?? "فرع غير معروف";
+}
 export function relativeNotificationTime(createdAt: string) {
   const minutes = Math.max(0, Math.round((Date.parse("2026-08-08T15:30:00.000Z") - Date.parse(createdAt)) / 60000));
   if (minutes < 2) return "الآن";

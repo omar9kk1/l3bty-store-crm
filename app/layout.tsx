@@ -24,7 +24,28 @@ export const metadata: Metadata = {
     default: "L3BTY | لعبتي",
     template: "%s | L3BTY",
   },
-  description: "الأساس التقني لتطبيق L3BTY لإدارة نشاط لعبتي.",
+  description:
+    "نظام L3BTY لإدارة التأجير والمبيعات والصيانة والمخزون والموظفين والمالية.",
+  openGraph: {
+    title: "L3BTY | لعبتي",
+    description: "إدارة نشاط لعبتي من مكان واحد.",
+    locale: "ar_EG",
+    type: "website",
+    images: [
+      {
+        url: "/og-l3bty.png",
+        width: 1731,
+        height: 909,
+        alt: "L3BTY | لعبتي",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "L3BTY | لعبتي",
+    description: "إدارة نشاط لعبتي من مكان واحد.",
+    images: ["/og-l3bty.png"],
+  },
 };
 
 export default function RootLayout({

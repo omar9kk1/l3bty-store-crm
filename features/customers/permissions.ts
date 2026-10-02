@@ -3,22 +3,22 @@ import type { Customer, CustomerAccess, CustomerActivityType } from "./types";
 
 export function resolveCustomerAccess(roles: readonly RoleId[]): CustomerAccess {
   const management = roles.includes("owner") || roles.includes("manager");
-  const sales = roles.includes("sales_employee");
-  const rental = roles.includes("rental_maintenance_employee");
   const activities = new Set<CustomerActivityType>();
 
-  if (management || sales) activities.add("sales");
-  if (management || rental) activities.add("rental");
-  if (management || rental) activities.add("maintenance");
+  if (management) activities.add("sales");
+  if (management) activities.add("rental");
+  if (management) activities.add("maintenance");
 
   return {
-    canCreate: management || sales || rental,
-    canEdit: management || sales || rental,
-    canViewFinancial: management || sales || rental,
-    canViewSales: management || sales,
-    canViewRentals: management || rental,
-    canViewMaintenance: management || rental,
+    canCreate: management,
+    canEdit: management,
+    canViewSales: management,
+    canViewRentals: management,
+    canViewMaintenance: management,
     canViewFullTimeline: management,
+    canRequestDelete: roles.includes("sales_employee") || roles.includes("rental_maintenance_employee"),
+    canDeleteDirectly: management,
+    canReviewDeleteRequests: roles.includes("manager"),
     allowedActivityTypes: [...activities],
   };
 }

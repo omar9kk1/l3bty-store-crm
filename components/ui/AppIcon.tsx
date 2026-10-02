@@ -38,6 +38,7 @@ const icons: Record<NavigationIcon, LucideIcon> = {
   assets: ShieldCheck,
   inventory: Boxes,
   transfers: ArrowLeftRight,
+  clipboard: ClipboardList,
   employees: Users,
   attendance: CalendarCheck2,
   shifts: Clock3,
@@ -51,12 +52,11 @@ const icons: Record<NavigationIcon, LucideIcon> = {
   settings: Settings,
 };
 
-export type AppIconName = NavigationIcon | "activity" | "card" | "clipboard";
+export type AppIconName = NavigationIcon | "activity" | "card";
 
-const utilityIcons: Record<"activity" | "card" | "clipboard", LucideIcon> = {
+const utilityIcons: Record<"activity" | "card", LucideIcon> = {
   activity: Activity,
   card: CreditCard,
-  clipboard: ClipboardList,
 };
 
 interface AppIconProps extends Omit<LucideProps, "name"> {

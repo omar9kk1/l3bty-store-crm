@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const viewports = [{ width: 1920, height: 1080 }, { width: 1440, height: 900 }, { width: 1366, height: 768 }, { width: 1024, height: 768 }, { width: 834, height: 1112 }, { width: 768, height: 1024 }, { width: 390, height: 844 }];
-async function selectOnlyRole(page: Page, role: string) { const mobile = (page.viewportSize()?.width ?? 1440) < 768; await page.getByRole("button", { name: mobile ? "معاينة" : /معاينة الأدوار/ }).click(); await page.getByRole("checkbox", { name: role, exact: true }).click(); await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click(); if (mobile) await page.getByRole("dialog", { name: "معاينة الأدوار" }).getByRole("button", { name: "إغلاق" }).click(); }
+async function selectOnlyRole(page: Page, role: string) { const mobile = (page.viewportSize()?.width ?? 1440) < 768; await page.getByRole("button", { name: mobile ? "معاينة" : /معاينة الأدوار/ }).click(); await page.getByRole("checkbox", { name: role, exact: true }).click(); if (mobile) await page.getByRole("dialog", { name: "معاينة الأدوار" }).getByRole("button", { name: "إغلاق" }).click(); }
 
 test("notification and activity routes are responsive without horizontal overflow", async ({ page }) => {
   test.setTimeout(120_000);

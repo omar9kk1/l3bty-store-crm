@@ -41,6 +41,6 @@ export const AUDIT_FIXTURES: readonly AuditEvent[] = seeds.map((seed, index) => 
   id: `audit-${index + 1}`, eventNumber: `AUD-2026-${String(index + 1).padStart(5, "0")}`, actorUserId: seed.actor.user, actorEmployeeId: seed.actor.employee, actorRolesSnapshot: seed.actor.roles,
   branchId: seed.branch, action: seed.action, category: seed.category, entityType: seed.entity, entityId: seed.id, referenceNumber: seed.reference, severity: seed.severity, reason: seed.reason,
   before: seed.before ?? null, after: seed.after ?? null, changedFields: seed.fields ?? [], source: seed.source ?? "web", requestId: `req-mock-${String(index + 1).padStart(4, "0")}`,
-  idempotencyKey: `audit:${seed.category}:${seed.action}:${seed.id}:${index + 1}`, ipAddressMock: "192.0.2.10", userAgentSummaryMock: seed.source === "mobile_web" ? "Mobile Web · Mock" : "Desktop Web · Mock",
+  idempotencyKey: `audit:${seed.category}:${seed.action}:${seed.id}:${index + 1}`, ipAddressMock: "192.0.2.10", userAgentSummaryMock: seed.source === "mobile_web" ? "متصفح الهاتف" : "متصفح الكمبيوتر",
   createdAt: `2026-08-08T${String(7 + (index % 9)).padStart(2, "0")}:${String((index * 5) % 60).padStart(2, "0")}:00.000Z`,
 })).sort((a, b) => b.createdAt.localeCompare(a.createdAt));

@@ -12,7 +12,6 @@ async function chooseOnlyRole(page: Page, role: string) {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   await page.getByRole("button", { name: /معاينة/ }).click();
   await page.getByRole("checkbox", { name: role, exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
   if (mobile) await page.getByRole("dialog", { name: "معاينة الأدوار" }).getByRole("button", { name: "إغلاق" }).click();
 }
 

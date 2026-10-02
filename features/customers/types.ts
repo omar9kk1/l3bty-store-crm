@@ -1,13 +1,12 @@
 export type CustomerStatus = "active" | "inactive" | "blocked";
 
 export type CustomerFlag =
-  | "debt"
   | "rental_ban"
   | "needs_review";
 
 export type CustomerActivityType = "sales" | "rental" | "maintenance";
 
-export type CustomerSort = "recent" | "name" | "balance";
+export type CustomerSort = "recent" | "name";
 export type CustomerViewState = "normal" | "loading" | "empty" | "error" | "offline";
 
 export interface Customer {
@@ -26,12 +25,32 @@ export interface Customer {
   totalSales: number;
   totalRentals: number;
   totalMaintenanceOrders: number;
-  outstandingBalance: number;
   status: CustomerStatus;
   flags: CustomerFlag[];
   notesCount: number;
   activityTypes: CustomerActivityType[];
   assignedMaintenance: boolean;
+  /** Soft deletion keeps old invoices and rentals readable while hiding the customer from new work. */
+  deletedAt?: string | null;
+  deletedByEmployeeId?: string | null;
+}
+
+export type CustomerDeleteRequestStatus = "pending" | "approved" | "rejected";
+
+export interface CustomerDeleteRequest {
+  id: string;
+  customerId: string;
+  customerName: string;
+  branchId: string;
+  reason: string;
+  status: CustomerDeleteRequestStatus;
+  requestedByEmployeeId: string;
+  requestedByUserId: string;
+  requestedByName: string;
+  requestedAt: string;
+  reviewedByEmployeeId: string | null;
+  reviewedAt: string | null;
+  reviewerNote: string;
 }
 
 export interface CustomerActivityEvent {
@@ -58,7 +77,6 @@ export interface CustomerQuery {
 export interface CustomerSummaryData {
   total: number;
   active: number;
-  withDebt: number;
   needsReview: number;
 }
 
@@ -82,10 +100,12 @@ export interface CustomerFormValidation {
 export interface CustomerAccess {
   canCreate: boolean;
   canEdit: boolean;
-  canViewFinancial: boolean;
   canViewSales: boolean;
   canViewRentals: boolean;
   canViewMaintenance: boolean;
   canViewFullTimeline: boolean;
+  canRequestDelete: boolean;
+  canDeleteDirectly: boolean;
+  canReviewDeleteRequests: boolean;
   allowedActivityTypes: CustomerActivityType[];
 }

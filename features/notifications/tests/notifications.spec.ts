@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { canOpenNotificationReference, canReceiveNotification, resolveNotificationIdentity } from "../permissions";
 import { dismissNotification, getNotificationsSnapshot, markAllNotificationsRead, markNotificationRead, markNotificationUnread, publishNotification, resetNotificationStore } from "../services/notification-service";
 import { createReportSnapshot, resetReportsStore, sendSnapshot } from "@/features/reports/services/report-store";
+import { notificationBranchLabel } from "../components/notification-ui";
 
 describe("central notifications", () => {
   beforeEach(() => { resetNotificationStore(); resetReportsStore(); });
@@ -51,5 +52,17 @@ describe("central notifications", () => {
     const linked = getNotificationsSnapshot().notifications.find((item) => item.referenceId === created.snapshot.id);
     expect(linked?.recipientUserId).toBe("user-owner");
     expect(linked?.recipientEmployeeId).toBe("employee-owner");
+  });
+
+  it("shows readable Arabic names instead of internal notification scopes", () => {
+    const branches = [
+      { id: "branch-01", name: "مول غازي", type: "branch" as const },
+      { id: "branch-02", name: "الورشة المركزية 1", type: "central_workshop" as const },
+    ];
+
+    expect(notificationBranchLabel("branch-01", branches)).toBe("مول غازي");
+    expect(notificationBranchLabel("workshop", branches)).toBe("الورشة المركزية 1");
+    expect(notificationBranchLabel("all", branches)).toBe("كل الفروع");
+    expect(notificationBranchLabel("missing-branch", branches)).toBe("فرع غير معروف");
   });
 });

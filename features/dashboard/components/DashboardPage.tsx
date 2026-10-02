@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useShell } from "@/components/shell/ShellContext";
-import { allowedActivityTypes, dashboardVisibility, isManagementDashboard } from "../permissions";
+import { allowedActivityTypes, dashboardVisibility } from "../permissions";
 import { getDashboardData } from "../services/get-dashboard-data";
 import type { DashboardActivityType, DashboardPeriod, DashboardState } from "../types";
 import { AlertsApprovalsCard, ActiveRentalsCard, AttendanceSummaryCard, BranchPerformanceCard, MaintenanceSummaryCard, RentalUtilizationCard, StockAlertsCard } from "./DashboardSections";
@@ -50,7 +50,7 @@ export function DashboardPage() {
   return (
     <div className="dashboard-page" data-dashboard-state={state}>
       {state === "offline" ? <DashboardOfflineState /> : null}
-      <DashboardHeader period={period} lastUpdated={data.lastUpdated} canExport={isManagementDashboard(roles)} offline={state === "offline"} onPeriodChange={(value) => updateQuery("period", value)} onOpenFilters={() => setFiltersOpen(true)} onExport={() => setNotice("تم تجهيز نموذج التصدير التجريبي بنجاح.")} />
+      <DashboardHeader period={period} lastUpdated={data.lastUpdated} onPeriodChange={(value) => updateQuery("period", value)} onOpenFilters={() => setFiltersOpen(true)} />
       <DashboardFilters open={filtersOpen} onOpenChange={setFiltersOpen} types={allowedTypes} selectedType={type} onTypeChange={(value) => updateQuery("type", value)} branches={availableBranches} branchId={activeBranch.id} onBranchChange={selectBranch} />
       {notice ? <div className="dashboard-notice" role="status"><span>{notice}</span><button type="button" onClick={() => setNotice("")} aria-label="إغلاق الرسالة">×</button></div> : null}
       {state === "empty" ? <DashboardEmptyState /> : state === "error" ? <DashboardErrorState onRetry={() => updateQuery("state", "normal")} /> : (

@@ -43,7 +43,7 @@
   inset-inline-start: 0;
   z-index: var(--z-sticky);
   display: grid;
-  grid-template-rows: var(--header-height) minmax(0, 1fr) 64px;
+  grid-template-rows: var(--header-height) minmax(0, 1fr) 56px;
   inline-size: var(--sidebar-width);
   border-inline-end: 1px solid var(--line);
   background: var(--surface);
@@ -88,20 +88,20 @@
 .sidebar__nav {
   min-block-size: 0;
   overflow-y: auto;
-  padding: var(--space-3);
+  padding: 6px var(--space-3);
   scrollbar-width: none;
 }
 
 .sidebar__nav::-webkit-scrollbar { display: none; }
 
-.sidebar-section + .sidebar-section { margin-block-start: var(--space-2); }
+.sidebar-section + .sidebar-section { margin-block-start: 2px; }
 
 .sidebar-section__trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   inline-size: 100%;
-  min-block-size: 32px;
+  min-block-size: 30px;
   border: 0;
   background: transparent;
   color: var(--ink-3);
@@ -120,7 +120,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-block-size: 44px;
+  min-block-size: 40px;
   border-radius: var(--radius-sm);
   color: var(--ink-2);
   padding-inline: var(--space-3);
@@ -353,6 +353,8 @@
   background: var(--surface);
   box-shadow: var(--shadow-2);
   padding: var(--space-2);
+  max-block-size: calc(100vh - var(--header-height) - var(--space-4));
+  overflow-y: auto;
 }
 .role-preview__controls { display: grid; gap: var(--space-1); }
 .role-preview__drawer { padding: var(--space-3) var(--space-4) var(--space-5); }
@@ -361,6 +363,12 @@
 .role-preview__option { display: flex; align-items: center; gap: var(--space-3); min-block-size: 44px; border-radius: var(--radius-sm); padding-inline: var(--space-3); }
 .role-preview__option:hover { background: var(--surface-2); }
 .role-preview__option input { inline-size: 18px; block-size: 18px; accent-color: var(--ink); }
+.role-preview__session { display: grid; gap: var(--space-3); margin-block-start: var(--space-2); border-block-start: 1px solid var(--line); padding: var(--space-3); }
+.role-preview__session label { display: grid; gap: 6px; color: var(--ink-2); font-size: 0.75rem; font-weight: 600; }
+.role-preview__session select { inline-size: 100%; min-block-size: 44px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); padding-inline: 12px 36px; font: inherit; }
+.role-preview__session select:disabled { opacity: .6; cursor: not-allowed; }
+.role-preview__session p,.role-preview__session small { margin: 0; color: var(--ink-3); font-size: 0.72rem; line-height: 1.6; }
+.role-preview__session p { color: var(--status-warning); }
 .role-preview__dev-link { margin-block-start: var(--space-1); border-block-start: 1px solid var(--line); padding: var(--space-3); color: var(--ink-2); font-size: 0.8125rem; }
 
 .ui-badge { display: inline-flex; align-items: center; min-block-size: 24px; border-radius: var(--radius-full); padding-inline: 10px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }

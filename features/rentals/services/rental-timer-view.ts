@@ -7,10 +7,21 @@ export type RentalTimerView = {
   value: string;
   tone: RentalTimerTone;
   progress: number;
-  mode: "fixed" | "open" | "closed";
+  mode: "fixed" | "open" | "closed" | "decision";
 };
 
 const BILLING_INTERVAL_SECONDS = 15 * 60;
+
+export function isRentalAwaitingDecision(rental: Rental, referenceMs: number) {
+  return Boolean(
+    rental.startedAt
+    && rental.durationType !== "open_time"
+    && rental.expectedEndAt
+    && rental.status !== "completed"
+    && rental.status !== "cancelled"
+    && referenceMs > new Date(rental.expectedEndAt).getTime()
+  );
+}
 
 function intervalProgress(seconds: number) {
   const elapsedInInterval = seconds % BILLING_INTERVAL_SECONDS;
@@ -65,10 +76,10 @@ export function getRentalTimerView(rental: Rental, referenceMs: number): RentalT
   }
 
   return {
-    label: "وقت إضافي",
-    value: formatTimer(Math.abs(remainingSeconds)),
+    label: "انتهى الوقت",
+    value: "00:00:00",
     tone: "danger",
-    progress: 100,
-    mode: "fixed",
+    progress: 0,
+    mode: "decision",
   };
 }

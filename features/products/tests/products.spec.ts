@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { PRODUCT_FIXTURES } from "../fixtures";
 import { validateProduct } from "../schemas/product-schema";
-import { commitSaleStock, getProductSnapshot, resetProductStore } from "../services/product-store";
+import { commitSaleStock, getProductSnapshot, resetProductStore, saveProduct } from "../services/product-store";
 import type { ProductFormValues } from "../types";
 
 const values: ProductFormValues = {
@@ -38,9 +38,26 @@ describe("sale products catalog", () => {
     expect(validateProduct({ ...values, openingStock: { main: -1 } }, PRODUCT_FIXTURES).valid).toBe(false);
   });
 
+  it("requires a barcode and image for every sales product", () => {
+    const saleProduct = { ...values, type: "sale_toy" as const, imageMockKey: "data:image/png;base64,cHJvZHVjdA==" };
+    expect(validateProduct({ ...saleProduct, barcode: "" }, PRODUCT_FIXTURES).valid).toBe(false);
+    expect(validateProduct({ ...saleProduct, imageMockKey: "" }, PRODUCT_FIXTURES).valid).toBe(false);
+    expect(validateProduct(saleProduct, PRODUCT_FIXTURES).valid).toBe(true);
+  });
+
   it("never permits stock to fall below zero", () => {
     const before = getProductSnapshot().stocks.find((stock) => stock.productId === "product-car-12v" && stock.branchId === "main")!;
     expect(commitSaleStock([{ productId: "product-car-12v", quantity: before.quantityAvailable + 1 }], "main", "TEST").valid).toBe(false);
     expect(getProductSnapshot().stocks.find((stock) => stock.productId === "product-car-12v" && stock.branchId === "main")?.quantityAvailable).toBe(before.quantityAvailable);
+  });
+
+  it("updates a product's available quantity and records the difference", () => {
+    const created = saveProduct(values);
+    expect(created.valid).toBe(true);
+
+    const updated = saveProduct({ ...values, openingStock: { main: 4 } }, created.product!.id);
+    expect(updated.valid).toBe(true);
+    expect(getProductSnapshot().stocks.find((stock) => stock.productId === created.product!.id && stock.branchId === "main")?.quantityAvailable).toBe(4);
+    expect(getProductSnapshot().movements.find((movement) => movement.productId === created.product!.id && movement.type === "adjustment")?.quantity).toBe(3);
   });
 });

@@ -5,7 +5,6 @@ async function openTechnicianFaults(page: Page) {
   await page.goto("/dashboard");
   await page.getByRole("button", { name: /معاينة/ }).click();
   await page.getByRole("checkbox", { name: "فني الصيانة", exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
   await page.locator(".sidebar").getByRole("link", { name: "الصيانة", exact: true }).click();
   await expect(page.getByRole("heading", { name: "صندوق بلاغات الأعطال" })).toBeVisible();
 }

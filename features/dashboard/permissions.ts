@@ -35,7 +35,7 @@ export function dashboardVisibility(roles: readonly RoleId[]) {
   return {
     management,
     branchPerformance: management,
-    rentalUtilization: management || rental || technician,
+    rentalUtilization: management || rental,
     activeRentals: management || rental,
     maintenance: management || rental || technician,
     stock: true,

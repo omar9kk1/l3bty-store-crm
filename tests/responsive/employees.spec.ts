@@ -5,7 +5,6 @@ const viewports = [{ width: 1920, height: 1080 }, { width: 1440, height: 900 }, 
 async function selectOnlyRole(page: Page, role: string) {
   await page.getByRole("button", { name: /معاينة الأدوار/ }).click();
   await page.getByRole("checkbox", { name: role, exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
 }
 
 test("employee administration list and detail are responsive without horizontal overflow", async ({ page }) => {
@@ -14,17 +13,17 @@ test("employee administration list and detail are responsive without horizontal 
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(1);
     if (viewport.width < 768) { await expect(page.locator(".employees-table-wrap")).toBeHidden(); await expect(page.locator(".employee-mobile-card").first()).toBeVisible(); } else await expect(page.locator(".employees-table-wrap")).toBeVisible();
   }
-  await page.goto("/employees/employee-sales"); await expect(page.getByRole("heading", { name: "سارة عادل التجريبية" })).toBeVisible(); expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await page.locator(".employee-mobile-card").first().getByRole("link", { name: "عرض الملف" }).click(); await expect(page.locator(".employee-details-page")).toBeVisible(); await expect(page.getByRole("heading", { name: "التواصل", exact: true })).toBeVisible(); for (const removed of ["رقم بديل", "البريد", "جهة الطوارئ", "هاتف الطوارئ", "العنوان"]) await expect(page.locator("dt", { hasText: removed })).toHaveCount(0); expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
 test("owner and manager can manage employees while operational roles cannot render admin data", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 }); await page.goto("/employees"); await expect(page.locator(".employees-page")).toBeVisible();
-  await page.getByRole("button", { name: /معاينة الأدوار/ }).click(); await page.getByRole("checkbox", { name: "المدير", exact: true }).click(); await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click(); await expect(page.locator(".employees-page")).toBeVisible(); await page.getByRole("link", { name: "سارة عادل التجريبية" }).click(); await expect(page.locator(".employee-details-page")).toBeVisible();
+  await page.getByRole("button", { name: /معاينة الأدوار/ }).click(); await page.getByRole("checkbox", { name: "المدير", exact: true }).click(); await expect(page.locator(".employees-page")).toBeVisible(); await page.getByRole("link", { name: "سارة عادل التجريبية" }).click(); await expect(page.locator(".employee-details-page")).toBeVisible();
   for (const role of ["موظف المبيعات", "موظف التأجير واستلام الصيانة", "فني الصيانة"]) { await page.goto("/employees"); await selectOnlyRole(page, role); await expect(page.getByText("لا تملك صلاحية لعرض هذا القسم")).toBeVisible(); await expect(page.locator(".employees-page,.employee-details-page")).toHaveCount(0); await expect(page.getByRole("link", { name: "الموظفون" })).toHaveCount(0); }
 });
 
-test("operational multi-role still cannot access employee administration", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 }); await page.goto("/employees/employee-owner"); await page.getByRole("button", { name: /معاينة الأدوار/ }).click(); await page.getByRole("checkbox", { name: "موظف المبيعات", exact: true }).click(); await page.getByRole("checkbox", { name: "موظف التأجير واستلام الصيانة", exact: true }).click(); await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click(); await expect(page.getByText("لا تملك صلاحية لعرض هذا القسم")).toBeVisible(); await expect(page.locator(".employee-details-page")).toHaveCount(0);
+test("switching operational roles still cannot access employee administration", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.goto("/employees/employee-owner"); await page.getByRole("button", { name: /معاينة الأدوار/ }).click(); await page.getByRole("checkbox", { name: "موظف المبيعات", exact: true }).click(); await page.getByRole("checkbox", { name: "موظف التأجير واستلام الصيانة", exact: true }).click(); await expect(page.getByText("لا تملك صلاحية لعرض هذا القسم")).toBeVisible(); await expect(page.locator(".employee-details-page")).toHaveCount(0);
 });
 
 test("every operational role opens only its own limited profile", async ({ page }) => {
@@ -34,7 +33,7 @@ test("every operational role opens only its own limited profile", async ({ page 
 });
 
 test("profile ignores foreign employee identifiers and works on mobile", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 }); await page.goto("/dashboard"); await page.getByRole("button", { name: "معاينة" }).click(); await page.getByRole("checkbox", { name: "موظف المبيعات", exact: true }).click(); await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click(); await page.getByRole("dialog", { name: "معاينة الأدوار" }).getByRole("button", { name: "إغلاق" }).click(); await page.getByLabel("قائمة المستخدم").click(); await page.getByRole("link", { name: "الملف الشخصي" }).click(); await expect(page.locator(".employee-profile-page")).toHaveAttribute("data-profile-employee", "employee-sales"); await page.evaluate(() => window.history.pushState({}, "", "/profile?employeeId=employee-owner")); await expect(page.locator(".employee-profile-page")).toHaveAttribute("data-profile-employee", "employee-sales");
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto("/dashboard"); await page.getByRole("button", { name: "معاينة" }).click(); await page.getByRole("checkbox", { name: "موظف المبيعات", exact: true }).click(); await page.getByRole("dialog", { name: "معاينة الأدوار" }).getByRole("button", { name: "إغلاق" }).click(); await page.getByLabel("قائمة المستخدم").click(); await page.getByRole("link", { name: "الملف الشخصي" }).click(); await expect(page.locator(".employee-profile-page")).toHaveAttribute("data-profile-employee", "employee-sales"); await page.evaluate(() => window.history.pushState({}, "", "/profile?employeeId=employee-owner")); await expect(page.locator(".employee-profile-page")).toHaveAttribute("data-profile-employee", "employee-sales");
 });
 
 test("search, active branch scope, filters and deterministic states work", async ({ page }) => {
@@ -43,6 +42,6 @@ test("search, active branch scope, filters and deterministic states work", async
 });
 
 test("employee form uses auxiliary Drawer on desktop and bottom sheet on mobile", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 }); await page.goto("/employees"); await page.getByRole("button", { name: "إضافة موظف" }).click(); const desktop = page.getByRole("dialog", { name: "إضافة موظف" }); await expect(desktop).toBeVisible(); expect((await desktop.boundingBox())?.x).toBeLessThan(3); await page.getByLabel("الهاتف *").fill("01000000001"); await page.getByRole("button", { name: "حفظ الموظف" }).click(); await expect(page.getByText("البيانات مستخدمة بالفعل")).toBeVisible(); await page.getByRole("button", { name: "إغلاق" }).click();
-  await page.setViewportSize({ width: 390, height: 844 }); await page.getByRole("button", { name: "إضافة موظف" }).click(); const mobile = page.getByRole("dialog", { name: "إضافة موظف" }); await expect(mobile).toHaveCSS("inset-block-end", "0px"); expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.goto("/employees"); await page.getByRole("button", { name: "إضافة موظف" }).first().click(); const desktop = page.getByRole("dialog", { name: "إضافة موظف" }); await expect(desktop).toBeVisible(); expect((await desktop.boundingBox())?.x).toBeLessThan(3); await expect(page.getByLabel("كود الموظف المُنشأ تلقائيًا")).toHaveText("EMP-0001"); await expect(desktop.getByLabel("الاسم *")).toBeVisible(); await expect(desktop.getByLabel("الهاتف *")).toBeVisible(); await expect(desktop.getByLabel("الدور *")).toBeVisible(); for (const removed of ["رقم بديل", "البريد", "المسمى الوظيفي *", "تاريخ التعيين *", "الفرع الأساسي *", "جهة اتصال للطوارئ", "العنوان", "ملاحظات"]) await expect(desktop.getByLabel(removed, { exact: true })).toHaveCount(0); await page.getByRole("button", { name: "إغلاق" }).click();
+  await page.setViewportSize({ width: 390, height: 844 }); await page.getByRole("button", { name: "إضافة موظف" }).first().click(); const mobile = page.getByRole("dialog", { name: "إضافة موظف" }); await expect(mobile).toHaveCSS("inset-block-end", "0px"); expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });

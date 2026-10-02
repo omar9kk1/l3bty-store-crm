@@ -24,8 +24,7 @@ export function SidebarSection({
   onToggle: () => void;
   onNavigate?: () => void;
 }) {
-  const hasActiveItem = items.some((item) => isNavigationItemActive(item, pathname));
-  const isOpen = open || hasActiveItem;
+  const isOpen = open;
 
   return (
     <section className="sidebar-section">

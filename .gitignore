@@ -18,9 +18,15 @@
 # next.js
 /.next/
 /out/
+/dist/
+/.wrangler/
 
 # production
-/build
+/build/*
+!/build/sites-vite-plugin.ts
+
+# local SQLite data (never commit real test/business records)
+/.data/
 
 # misc
 .DS_Store

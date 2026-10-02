@@ -4,25 +4,94 @@ import { getRentalSnapshot, setRentalAssetMaintenanceStatus } from "@/features/r
 import { MAINTENANCE_FAULT_FIXTURES, MAINTENANCE_NOTIFICATION_FIXTURES, MAINTENANCE_ORDER_FIXTURES } from "../fixtures";
 import { validateMaintenanceIntake } from "../schemas/maintenance-schema";
 import type { DiagnosisInput, FaultReport, MaintenanceEvent, MaintenanceIntakeInput, MaintenanceNotification, MaintenanceOrder, MaintenanceStatus, PartUsage, WorkshopTransfer } from "../types";
+import { readLocalTestData, removeLocalTestData, writeLocalTestData } from "@/lib/local-test-data";
+import { getEmployeesSnapshot as getEmployeeRecordsSnapshot } from "@/features/employees/services/employee-store";
+import { markNotificationActedByReference, publishNotification } from "@/features/notifications/services/notification-service";
+import { repairMaintenanceText } from "./repair-maintenance-text";
 
-const now="2026-08-06T17:30:00+03:00";
-let faults:readonly FaultReport[]=MAINTENANCE_FAULT_FIXTURES.map(cloneFault);
-let orders:readonly MaintenanceOrder[]=MAINTENANCE_ORDER_FIXTURES.map(cloneOrder);
-let notifications:readonly MaintenanceNotification[]=MAINTENANCE_NOTIFICATION_FIXTURES.map((item)=>({...item}));
-let processed=new Map<string,string>();let sequence=100;
+const now="2026-08-06T17:30:00+03:00",STORAGE_KEY="l3bty-local-maintenance-v1";
+const getEmployeesSnapshot=()=>({employees:getEmployeeRecordsSnapshot()});
+const stored=readLocalTestData<{faults:FaultReport[];orders:MaintenanceOrder[];notifications:MaintenanceNotification[];processed:[string,string][];sequence:number}>(STORAGE_KEY,1,{faults:[],orders:[],notifications:[],processed:[],sequence:100});
+let faults:readonly FaultReport[]=stored.faults.map(repairFault);
+let orders:readonly MaintenanceOrder[]=stored.orders.map(repairOrder);
+let notifications:readonly MaintenanceNotification[]=stored.notifications.map(repairNotification);
+let processed=new Map<string,string>(stored.processed);let sequence=stored.sequence;
 let snapshot={faults,orders,notifications};const listeners=new Set<()=>void>();
 
 function cloneFault(item:FaultReport):FaultReport{return{...item,accessories:[...item.accessories],evidenceAttachments:item.evidenceAttachments.map((attachment)=>({...attachment}))};}
 function cloneOrder(item:MaintenanceOrder):MaintenanceOrder{return{...item,partUsages:item.partUsages.map((usage)=>({...usage})),workshopTransfer:item.workshopTransfer?{...item.workshopTransfer,accessories:[...item.workshopTransfer.accessories]}:null,events:item.events.map((event)=>({...event}))};}
-function emit(){snapshot={faults,orders,notifications};listeners.forEach((listener)=>listener());}
+function repairFault(item:FaultReport):FaultReport{const fault=cloneFault(item);return{...fault,itemName:repairMaintenanceText(fault.itemName),itemDescription:repairMaintenanceText(fault.itemDescription),faultDescription:repairMaintenanceText(fault.faultDescription),intakeCondition:repairMaintenanceText(fault.intakeCondition),accessories:fault.accessories.map(repairMaintenanceText),notes:repairMaintenanceText(fault.notes),evidenceAttachments:fault.evidenceAttachments.map((attachment)=>({...attachment,name:repairMaintenanceText(attachment.name)}))};}
+function repairOrder(item:MaintenanceOrder):MaintenanceOrder{const order=cloneOrder(item);return{...order,diagnosis:repairMaintenanceText(order.diagnosis),faultCause:repairMaintenanceText(order.faultCause),recommendedAction:repairMaintenanceText(order.recommendedAction),technicianNotes:repairMaintenanceText(order.technicianNotes),partUsages:order.partUsages.map((usage)=>({...usage,note:repairMaintenanceText(usage.note)})),workshopTransfer:order.workshopTransfer?{...order.workshopTransfer,reason:repairMaintenanceText(order.workshopTransfer.reason),conditionBeforeDispatch:repairMaintenanceText(order.workshopTransfer.conditionBeforeDispatch),accessories:order.workshopTransfer.accessories.map(repairMaintenanceText)}:null,events:order.events.map((event)=>({...event,previousValue:repairMaintenanceText(event.previousValue),newValue:repairMaintenanceText(event.newValue),reason:repairMaintenanceText(event.reason)}))};}
+function repairNotification(item:MaintenanceNotification):MaintenanceNotification{return{...item,title:repairMaintenanceText(item.title),message:repairMaintenanceText(item.message)};}
+const repairedLegacyText=JSON.stringify({faults,orders,notifications})!==JSON.stringify({faults:stored.faults,orders:stored.orders,notifications:stored.notifications});
+if(repairedLegacyText)writeLocalTestData(STORAGE_KEY,1,{faults,orders,notifications,processed:[...processed],sequence});
+function emit(persist=true){snapshot={faults,orders,notifications};if(persist)writeLocalTestData(STORAGE_KEY,1,{faults,orders,notifications,processed:[...processed],sequence});listeners.forEach((listener)=>listener());}
 function audit(order:MaintenanceOrder,type:string,by:string,previousValue:string,newValue:string,reason:string):MaintenanceEvent{return{id:`maintenance-event-${sequence++}`,type,at:now,by,branchId:order.branchId,previousValue,newValue,reason};}
-function notify(notification:Omit<MaintenanceNotification,"id"|"createdAt"|"read">){notifications=[{...notification,id:`maintenance-notification-${sequence++}`,createdAt:now,read:false},...notifications];}
+function maintenanceRecipients(notification:MaintenanceNotification){
+  const current=getEmployeeRecordsSnapshot();
+  const employees=[...current,...EMPLOYEE_FIXTURES.filter((fixture)=>!current.some((employee)=>employee.id===fixture.id))];
+  return employees.filter((employee)=>employee.status==="active"&&(notification.recipientEmployeeId
+    ? employee.id===notification.recipientEmployeeId
+    : employee.roleAssignments.some((assignment)=>assignment.active&&assignment.roleKey===notification.recipientRole)));
+}
+function publishCentralMaintenanceNotification(notification:MaintenanceNotification){
+  const referenceId=notification.href.split("/").filter(Boolean).at(-1)??notification.id;
+  const referenceType=notification.href.includes("/orders/")?"maintenance_order":"fault_report";
+  maintenanceRecipients(notification).forEach((employee)=>publishNotification({
+    recipientUserId:employee.userId,
+    recipientEmployeeId:employee.id,
+    type:"maintenance_update",
+    category:"maintenance",
+    priority:notification.title.includes("جاهز")?"normal":"high",
+    title:notification.title,
+    body:notification.message,
+    branchId:notification.recipientRole==="maintenance_technician"?"all":notification.branchId,
+    referenceType,
+    referenceId,
+    deepLink:notification.href,
+    createdAt:new Date(notification.createdAt).toISOString(),
+    expiresAt:null,
+    idempotencyKey:`maintenance:${notification.id}:${employee.id}`,
+    metadata:{source:"maintenance"},
+  }));
+}
+function notify(input:Omit<MaintenanceNotification,"id"|"createdAt"|"read">){const notification={...input,id:`maintenance-notification-${sequence++}`,createdAt:now,read:false};notifications=[notification,...notifications];publishCentralMaintenanceNotification(notification);}
+export function syncMaintenanceNotifications(){
+  notifications.forEach(publishCentralMaintenanceNotification);
+  faults.filter((fault)=>fault.acknowledgedAt&&fault.assignedTechnicianId).forEach((fault)=>{
+    const technician=maintenanceRecipients({id:`ack-${fault.id}`,recipientEmployeeId:fault.assignedTechnicianId,recipientRole:"maintenance_technician",branchId:fault.branchId,title:"",message:"",href:`/maintenance/faults/${fault.id}`,createdAt:fault.acknowledgedAt!,read:false})[0];
+    if(!technician)return;
+    publishNotification({recipientUserId:technician.userId,recipientEmployeeId:technician.id,type:"maintenance_acknowledged",category:"maintenance",priority:"normal",title:"أصبحت مسؤولًا عن البلاغ",body:`${fault.faultNumber} · ${fault.itemName}`,branchId:"all",referenceType:"fault_report",referenceId:fault.id,deepLink:`/maintenance/faults/${fault.id}`,createdAt:new Date(fault.acknowledgedAt!).toISOString(),expiresAt:null,idempotencyKey:`maintenance:fault:${fault.id}:acknowledged:${technician.id}`,metadata:{source:"maintenance"}});
+  });
+}
+export function adoptLegacyPreviewTechnicianAssignments(technicianId:string){
+  if(!technicianId||technicianId==="employee-technician")return 0;
+  const faultIds=new Set(faults.filter((fault)=>fault.assignedTechnicianId==="employee-technician").map((fault)=>fault.id));
+  if(!faultIds.size)return 0;
+  faults=faults.map((fault)=>faultIds.has(fault.id)?{...fault,assignedTechnicianId:technicianId,updatedAt:now}:fault);
+  orders=orders.map((order)=>faultIds.has(order.faultReportId)?{...order,assignedTechnicianId:technicianId,updatedAt:now}:order);
+  notifications=notifications.map((notification)=>notification.recipientRole==="maintenance_technician"&&notification.recipientEmployeeId==="employee-technician"?{...notification,recipientEmployeeId:technicianId}:notification);
+  notifications.filter((notification)=>notification.recipientEmployeeId===technicianId).forEach(publishCentralMaintenanceNotification);
+  emit();return faultIds.size;
+}
 function replaceOrder(id:string,update:(order:MaintenanceOrder)=>MaintenanceOrder){orders=orders.map((order)=>order.id===id?update(order):order);emit();}
 export function subscribeMaintenanceStore(listener:()=>void){listeners.add(listener);return()=>listeners.delete(listener);}
 export function getMaintenanceSnapshot(){return snapshot;}
 
+export function deleteMaintenanceFault(faultId:string,actorRole:string){
+  if(actorRole!=="manager")return{valid:false,message:"حذف البلاغ متاح للمدير فقط."};
+  const fault=faults.find((item)=>item.id===faultId);if(!fault)return{valid:false,message:"البلاغ غير موجود أو تم حذفه بالفعل."};
+  const linkedOrder=orders.find((item)=>item.faultReportId===faultId);
+  if(fault.rentalAssetId)setRentalAssetMaintenanceStatus(fault.rentalAssetId,"available","حذف بلاغ الصيانة بواسطة المدير");
+  faults=faults.filter((item)=>item.id!==faultId);
+  orders=orders.filter((item)=>item.faultReportId!==faultId);
+  notifications=notifications.filter((item)=>!item.href.includes(`/maintenance/faults/${faultId}`)&&(!linkedOrder||!item.href.includes(`/maintenance/orders/${linkedOrder.id}`)));
+  if(linkedOrder)processed=new Map([...processed].filter(([,orderId])=>orderId!==linkedOrder.id));
+  emit();return{valid:true,message:`تم حذف البلاغ ${fault.faultNumber} والكرت المرتبط به.`};
+}
+
 export function createMaintenanceIntake(input:MaintenanceIntakeInput){
-  if(processed.has(input.idempotencyKey)){const order=orders.find((item)=>item.id===processed.get(input.idempotencyKey));return{valid:true,message:"تم استخدام طلب الاستلام المنشأ سابقًا.",order,duplicate:false};}
+  if(processed.has(input.idempotencyKey)){const order=orders.find((item)=>item.id===processed.get(input.idempotencyKey));const fault=order?faults.find((item)=>item.id===order.faultReportId):undefined;return{valid:true,message:"تم استخدام طلب الاستلام المنشأ سابقًا.",fault,order,duplicate:true};}
   const validation=validateMaintenanceIntake(input);if(!validation.valid)return{valid:false,message:Object.values(validation.errors)[0],errors:validation.errors};
   if(input.subjectType==="internal_asset"){
     const asset=getRentalSnapshot().assets.find((item)=>item.id===input.rentalAssetId);
@@ -44,18 +113,20 @@ export function createMaintenanceIntake(input:MaintenanceIntakeInput){
 
 export function acknowledgeFault(faultId:string,technicianId:string){
   const fault=faults.find((item)=>item.id===faultId);if(!fault)return{valid:false,message:"البلاغ غير موجود."};
-  const technician=EMPLOYEE_FIXTURES.find((item)=>item.id===technicianId&&item.status==="active"&&item.roleAssignments.some((assignment)=>assignment.roleKey==="maintenance_technician"));
+  const technician=getEmployeesSnapshot().employees.find((item)=>item.id===technicianId&&item.status==="active"&&item.roleAssignments.some((assignment)=>assignment.roleKey==="maintenance_technician"))??EMPLOYEE_FIXTURES.find((item)=>item.id===technicianId&&item.status==="active"&&item.roleAssignments.some((assignment)=>assignment.roleKey==="maintenance_technician"));
   if(!technician)return{valid:false,message:"الفني غير مؤهل أو غير نشط."};
   if(fault.acknowledgedAt)return{valid:false,message:`البلاغ مستلم بالفعل بواسطة ${EMPLOYEE_FIXTURES.find((item)=>item.id===fault.assignedTechnicianId)?.name??fault.assignedTechnicianId}.`,assignedTechnicianId:fault.assignedTechnicianId};
   if(fault.assignedTechnicianId&&fault.assignedTechnicianId!==technicianId)return{valid:false,message:"البلاغ مسند إلى فني آخر."};
   faults=faults.map((item)=>item.id===faultId?{...item,assignedTechnicianId:technicianId,acknowledgedAt:now,status:"acknowledged",updatedAt:now}:item);
   orders=orders.map((order)=>order.faultReportId===faultId?{...order,assignedTechnicianId:technicianId,status:"acknowledged",events:[audit(order,"acknowledged",technicianId,order.status,"acknowledged","تأكيد استلام البلاغ"),...order.events],updatedAt:now}:order);
-  notify({recipientEmployeeId:null,recipientRole:"manager",branchId:fault.branchId,title:"تم تأكيد استلام البلاغ",message:`${fault.faultNumber} · ${technician.name}`,href:`/maintenance/faults/${faultId}`});emit();return{valid:true,message:"تم تأكيد الاستلام وأصبح الفني مسؤولًا عن البلاغ."};
+  markNotificationActedByReference("fault_report",faultId,technician.userId);
+  notify({recipientEmployeeId:null,recipientRole:"manager",branchId:fault.branchId,title:"تم تأكيد استلام البلاغ",message:`${fault.faultNumber} · ${technician.name}`,href:`/maintenance/faults/${faultId}`});
+  notify({recipientEmployeeId:technicianId,recipientRole:"maintenance_technician",branchId:fault.branchId,title:"أصبحت مسؤولًا عن البلاغ",message:`${fault.faultNumber} · ${fault.itemName}`,href:`/maintenance/faults/${faultId}`});emit();return{valid:true,message:"تم تأكيد الاستلام وأصبح الفني مسؤولًا عن البلاغ."};
 }
 
 export function reassignTechnician(orderId:string,technicianId:string,actor:string,reason:string){
   const order=orders.find((item)=>item.id===orderId);if(!order)return{valid:false,message:"أمر الصيانة غير موجود."};if(!reason.trim())return{valid:false,message:"سبب إعادة التعيين إلزامي."};
-  const technician=EMPLOYEE_FIXTURES.find((item)=>item.id===technicianId&&item.status==="active"&&item.roleAssignments.some((assignment)=>assignment.roleKey==="maintenance_technician"));if(!technician)return{valid:false,message:"الفني غير مؤهل."};
+  const technician=getEmployeesSnapshot().employees.find((item)=>item.id===technicianId&&item.status==="active"&&item.roleAssignments.some((assignment)=>assignment.roleKey==="maintenance_technician"))??EMPLOYEE_FIXTURES.find((item)=>item.id===technicianId&&item.status==="active"&&item.roleAssignments.some((assignment)=>assignment.roleKey==="maintenance_technician"));if(!technician)return{valid:false,message:"الفني غير مؤهل."};
   replaceOrder(orderId,(item)=>({...item,assignedTechnicianId:technicianId,events:[audit(item,"reassigned",actor,item.assignedTechnicianId??"",technicianId,reason),...item.events],updatedAt:now}));
   faults=faults.map((fault)=>fault.id===order.faultReportId?{...fault,assignedTechnicianId:technicianId,updatedAt:now}:fault);notify({recipientEmployeeId:technicianId,recipientRole:"maintenance_technician",branchId:order.branchId,title:"إعادة تعيين أمر صيانة",message:`${order.orderNumber} · ${reason}`,href:`/maintenance/orders/${orderId}`});emit();return{valid:true,message:"تمت إعادة تعيين الفني وتوثيق السبب."};
 }
@@ -102,7 +173,7 @@ export function updateMaintenanceStatus(orderId:string,status:MaintenanceStatus,
   const order=orders.find((item)=>item.id===orderId);if(!order)return{valid:false,message:"أمر الصيانة غير موجود."};if(!reason.trim())return{valid:false,message:"سبب تحديث الحالة إلزامي."};if(status==="in_repair"&&order.subjectType==="customer_item"&&order.estimatedTotal>0&&order.customerApprovalStatus!=="approved")return{valid:false,message:"لا يمكن بدء إصلاح مدفوع قبل موافقة العميل."};
   replaceOrder(orderId,(item)=>({...item,status,startedAt:status==="in_repair"?item.startedAt??now:item.startedAt,completedAt:status==="quality_check"?now:item.completedAt,readyAt:["ready_for_return","ready_for_delivery"].includes(status)?now:item.readyAt,deliveredAt:status==="delivered"?now:item.deliveredAt,events:[audit(item,"status",actor,item.status,status,reason),...item.events],updatedAt:now}));
   if(status==="ready_for_delivery")notify({recipientEmployeeId:null,recipientRole:"rental_maintenance_employee",branchId:order.branchId,title:"لعبة جاهزة للتسليم",message:`${order.orderNumber} · جاهزة للتواصل مع العميل`,href:`/maintenance/orders/${orderId}`});
-  if(status==="closed"&&order.rentalAssetId)setRentalAssetMaintenanceStatus(order.rentalAssetId,"available","إغلاق أمر الصيانة بعد الفحص النهائي");emit();return{valid:true,message:"تم تحديث الحالة وتسجيل Audit Mock."};
+  if(status==="closed"&&order.rentalAssetId)setRentalAssetMaintenanceStatus(order.rentalAssetId,"available","إغلاق أمر الصيانة بعد الفحص النهائي");emit();return{valid:true,message:"تم تحديث حالة أمر الصيانة بنجاح."};
 }
 
-export function resetMaintenanceStore(){faults=MAINTENANCE_FAULT_FIXTURES.map(cloneFault);orders=MAINTENANCE_ORDER_FIXTURES.map(cloneOrder);notifications=MAINTENANCE_NOTIFICATION_FIXTURES.map((item)=>({...item}));processed=new Map();sequence=100;emit();}
+export function resetMaintenanceStore(){faults=MAINTENANCE_FAULT_FIXTURES.map(cloneFault);orders=MAINTENANCE_ORDER_FIXTURES.map(cloneOrder);notifications=MAINTENANCE_NOTIFICATION_FIXTURES.map((item)=>({...item}));processed=new Map();sequence=100;removeLocalTestData(STORAGE_KEY);emit(false);}

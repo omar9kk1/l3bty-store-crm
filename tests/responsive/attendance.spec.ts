@@ -7,7 +7,6 @@ async function selectOnlyRole(page: Page, role: string) {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   await page.getByRole("button", { name: mobile ? "معاينة" : /معاينة الأدوار/ }).click();
   await page.getByRole("checkbox", { name: role, exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
   if (mobile) await page.getByRole("dialog", { name: "معاينة الأدوار" }).getByRole("button", { name: "إغلاق" }).click();
 }
 
@@ -54,7 +53,6 @@ test("attendance administration is owner-manager only while personal routes rema
   await page.goto("/attendance");
   await page.getByRole("button", { name: /معاينة الأدوار/ }).click();
   await page.getByRole("checkbox", { name: "المدير", exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
   await expect(page.locator(".attendance-admin-page")).toBeVisible();
   await page.goto("/attendance/exceptions");
   await selectOnlyRole(page, "المدير");

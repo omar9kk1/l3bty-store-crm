@@ -11,7 +11,9 @@ import { useShell } from "./ShellContext";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 
 export function Header({ title, onOpenNavigation }: { title: string; onOpenNavigation: () => void }) {
-  const { activeBranch, availableBranches, setActiveBranchId } = useShell();
+  const { activeBranch, activeEmployee, activeWorkLocation, availableBranches, availableWorkLocations, roles, setActiveBranchId, setActiveWorkLocationId } = useShell();
+  const globalMaintenanceTechnician = roles.includes("maintenance_technician");
+  const userLabel = activeEmployee?.name ?? "اختر موظفًا";
   return (
     <header className="workspace-header">
       <div className="workspace-header__inner">
@@ -25,7 +27,23 @@ export function Header({ title, onOpenNavigation }: { title: string; onOpenNavig
           </div>
         </div>
         <div className="workspace-header__actions">
-          {availableBranches.length === 1 ? (
+          {globalMaintenanceTechnician && availableWorkLocations.length > 1 ? (
+            <Select
+              label="اختيار الورشة المركزية"
+              value={activeWorkLocation.id}
+              onChange={(event) => setActiveWorkLocationId(event.target.value)}
+              className="branch-select"
+            >
+              {availableWorkLocations.map((workshop) => (
+                <option key={workshop.id} value={workshop.id}>{workshop.nameAr} · {workshop.code}</option>
+              ))}
+            </Select>
+          ) : globalMaintenanceTechnician ? (
+            <div className="branch-context-label" aria-label="الورشة المركزية">
+              <span>ورشة عمل الفني</span>
+              <strong>{availableWorkLocations.length ? <>{activeWorkLocation.nameAr} · <bdi>{activeWorkLocation.code}</bdi></> : "لم تُضف ورشة مركزية"}</strong>
+            </div>
+          ) : availableBranches.length === 1 ? (
             <div className="branch-context-label" aria-label="الفرع المسند">
               <span>الفرع</span>
               <strong>{activeBranch.nameAr} · <bdi>{activeBranch.code}</bdi></strong>
@@ -47,7 +65,7 @@ export function Header({ title, onOpenNavigation }: { title: string; onOpenNavig
             <details className="user-menu">
               <summary className="user-menu-button" aria-label="قائمة المستخدم">
                 <span className="user-menu-button__avatar"><UserRound aria-hidden size={18} /></span>
-                <span className="user-menu-button__copy"><strong>{DEFAULT_SHELL_SCENARIO.userName}</strong><small>{activeBranch.nameAr}</small></span>
+                <span className="user-menu-button__copy"><strong>{userLabel}</strong><small>{activeEmployee ? `${activeEmployee.employeeNumber} · ${activeWorkLocation.nameAr}` : "لم يتم تحديد جلسة اختبار"}</small></span>
               </summary>
               <div className="user-menu__popover"><Link href="/profile"><UserRound aria-hidden size={16} />الملف الشخصي</Link><Link href="/my-activity">نشاطي</Link><Link href="/my-expenses">طلباتي المالية</Link><Link href="/my-payroll">كشف راتبي</Link><Link href="/my-reports">تقارير نشاطي</Link></div>
             </details>

@@ -12,10 +12,11 @@ export const NAVIGATION_ITEMS: readonly NavigationItem[] = [
   { key: "rental-assets", labelAr: "أصول التأجير", descriptionAr: "عرض وتشغيل الأصول المنفردة وحالتها.", href: "/rental-assets", icon: "assets", requiredPermission: permission.rentalAssets, section: "المخزون", exactMatch: false },
   { key: "inventory", labelAr: "المخزون", descriptionAr: "الأرصدة وحركات المخزون حسب الدور ونطاق الفروع.", href: "/inventory", icon: "inventory", requiredPermission: permission.inventory, section: "المخزون", exactMatch: true },
   { key: "transfers", labelAr: "التحويلات", descriptionAr: "طلبات التحويل والاستلام والتسليم بين الفروع والورشة.", href: "/inventory/transfers", icon: "transfers", requiredPermission: permission.transfersView, section: "المخزون", exactMatch: false },
+  { key: "branch-needs", labelAr: "طلبات احتياجات الفرع", descriptionAr: "طلب الألعاب أو المنتجات الناقصة ومتابعة قرار الإدارة.", href: "/branch-needs", icon: "clipboard", requiredPermission: permission.branchNeedsView, section: "المخزون", exactMatch: true },
   { key: "employees", labelAr: "الموظفون", descriptionAr: "إدارة الموظفين والأدوار والفروع المسندة.", href: "/employees", icon: "employees", requiredPermission: permission.employees, section: "الموظفون", exactMatch: false },
   { key: "attendance", labelAr: "الحضور والانصراف", descriptionAr: "تسجيل الحضور ومراجعة السجل حسب الصلاحية.", href: "/attendance", icon: "attendance", requiredPermission: permission.attendanceViewSelf, section: "الموظفون", exactMatch: false, mobilePriority: 4 },
-  { key: "shifts", labelAr: "الورديات", descriptionAr: "فتح وإغلاق ومراجعة الورديات المالية حسب الصلاحية.", href: "/shifts", icon: "shifts", requiredPermission: permission.shifts, section: "الموظفون", exactMatch: false },
-  { key: "finance", labelAr: "المالية", descriptionAr: "الخزائن والمدفوعات والسندات والمديونيات للإدارة.", href: "/finance", icon: "finance", requiredPermission: permission.finance, section: "المالية", exactMatch: false },
+  { key: "shifts", labelAr: "فتح وإغلاق الخزنة", descriptionAr: "فتح الخزنة في بداية العمل وإغلاقها مع مراجعة التحصيل والفرق.", href: "/shifts", icon: "shifts", requiredPermission: permission.shifts, section: "الموظفون", exactMatch: false },
+  { key: "finance", labelAr: "المالية", descriptionAr: "ملخص الحسابات والتحصيلات والمصروفات والرواتب.", href: "/finance", icon: "finance", requiredPermission: permission.finance, section: "المالية", exactMatch: false },
   { key: "expenses", labelAr: "المصروفات", descriptionAr: "إدارة طلبات المصروفات والموافقات والمدفوعات.", href: "/expenses", icon: "expenses", requiredPermission: permission.expenses, section: "المالية", exactMatch: false },
   { key: "payroll", labelAr: "الرواتب", descriptionAr: "إدارة دورات الرواتب والسلف والموافقات.", href: "/payroll", icon: "payroll", requiredPermission: permission.payroll, section: "المالية", exactMatch: false },
   { key: "reports", labelAr: "التقارير", descriptionAr: "مركز التقارير ونسخها الثابتة وتسليمها للمالك.", href: "/reports", icon: "reports", requiredPermission: permission.reports, section: "الإدارة", exactMatch: false },
@@ -39,6 +40,7 @@ export function isNavigationItemActive(item: NavigationItem, pathname: string) {
   if (item.key === "attendance") return pathname.startsWith("/attendance");
   if (item.key === "inventory") return pathname === "/inventory" || pathname.startsWith("/inventory/movements");
   if (item.key === "transfers") return pathname.startsWith("/inventory/transfers");
+  if (item.key === "branch-needs") return pathname.startsWith("/branch-needs");
   return item.exactMatch ? pathname === item.href : pathname.startsWith(item.href);
 }
 
@@ -53,6 +55,7 @@ export function findNavigationItem(pathname: string) {
   if (pathname.startsWith("/finance/")) return NAVIGATION_ITEMS.find((candidate) => candidate.key === "finance");
   if (pathname.startsWith("/shifts/")) return NAVIGATION_ITEMS.find((candidate) => candidate.key === "shifts");
   if (pathname.startsWith("/inventory/transfers")) return NAVIGATION_ITEMS.find((candidate) => candidate.key === "transfers");
+  if (pathname.startsWith("/branch-needs")) return NAVIGATION_ITEMS.find((candidate) => candidate.key === "branch-needs");
   if (pathname.startsWith("/inventory/")) return NAVIGATION_ITEMS.find((candidate) => candidate.key === "inventory");
   if (pathname.startsWith("/maintenance/")) return NAVIGATION_ITEMS.find((candidate) => candidate.key === "maintenance");
   if (pathname.startsWith("/sales/")) return NAVIGATION_ITEMS.find((candidate) => candidate.key === "sales");

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { DashboardPeriod } from "../types";
 
@@ -13,11 +13,8 @@ const periods: Array<{ value: DashboardPeriod; label: string }> = [
 interface DashboardHeaderProps {
   period: DashboardPeriod;
   lastUpdated: string;
-  canExport: boolean;
-  offline: boolean;
   onPeriodChange: (period: DashboardPeriod) => void;
   onOpenFilters: () => void;
-  onExport: () => void;
 }
 
 export function DashboardHeader(props: DashboardHeaderProps) {
@@ -43,9 +40,6 @@ export function DashboardHeader(props: DashboardHeaderProps) {
         </div>
         <div className="dashboard-heading__actions">
           <Button data-testid="dashboard-filters-trigger" size="sm" icon={<SlidersHorizontal size={17} />} onClick={props.onOpenFilters}>تصفية</Button>
-          {props.canExport ? (
-            <Button size="sm" icon={<Download size={17} />} disabled={props.offline} onClick={props.onExport}>تصدير</Button>
-          ) : null}
         </div>
       </div>
     </header>

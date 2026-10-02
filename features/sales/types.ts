@@ -1,4 +1,5 @@
 import type { SaleProductType } from "@/features/products/types";
+import type { RoleId } from "@/permissions/types";
 
 export type SaleInvoiceStatus = "draft" | "completed" | "partially_returned" | "fully_returned" | "cancelled";
 export type SalePaymentMethod = "cash" | "card" | "wallet" | "mixed";
@@ -12,5 +13,5 @@ export interface SaleAuditEvent { id:string;type:"created"|"price_override"|"dis
 export interface SaleInvoice { id:string;invoiceNumber:string;customerId:string;branchId:string;employeeId:string;shiftId:string;createdAt:string;status:SaleInvoiceStatus;lines:readonly SaleInvoiceLine[];subtotal:number;lineDiscountTotal:number;invoiceDiscountPercent:number;invoiceDiscountAmount:number;taxTotal:number;totalAmount:number;paidAmount:number;remainingAmount:number;payments:readonly SalePayment[];approvalReason:string;idempotencyKey:string;events:readonly SaleAuditEvent[]; }
 export interface SaleReturnLine { invoiceLineId:string;productId:string;quantity:number;condition:ReturnedItemCondition;amount:number; }
 export interface SaleReturnRecord { id:string;returnNumber:string;invoiceId:string;kind:SaleReturnKind;branchId:string;employeeId:string;createdAt:string;reason:string;refundMethod:"cash"|"original_method"|"customer_credit";refundAmount:number;replacementProductId:string|null;lines:readonly SaleReturnLine[];approvalReason:string; }
-export interface SaleCheckoutInput { customerId:string;branchId:string;employeeId:string;roles:readonly string[];payments:readonly Omit<SalePayment,"id"|"receivedBy"|"shiftId">[];invoiceDiscountPercent:number;approvalReason:string;managerApproved:boolean;allowDebt:boolean;idempotencyKey:string; }
+export interface SaleCheckoutInput { customerId:string;branchId:string;employeeId:string;roles:readonly RoleId[];payments:readonly Omit<SalePayment,"id"|"receivedBy"|"shiftId">[];invoiceDiscountPercent:number;approvalReason:string;managerApproved:boolean;allowDebt:boolean;idempotencyKey:string; }
 export interface SaleReturnInput { invoiceId:string;invoiceLineId:string;quantity:number;condition:ReturnedItemCondition;kind:SaleReturnKind;reason:string;refundMethod:SaleReturnRecord["refundMethod"];replacementProductId:string;employeeId:string;approvalReason:string; }

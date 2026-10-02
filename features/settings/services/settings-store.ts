@@ -65,7 +65,7 @@ export function saveSystemSettings(input: SystemSettings, actorEmployeeId: strin
   }, ...audits];
   snapshot = { settings, audits, updatedAt: NOW, updatedBy: actorEmployeeId };
   emit();
-  return { valid: true as const, changedKeys, message: "تم حفظ " + changedKeys.length + " إعدادًا في الحالة التجريبية وتسجيل التغيير." };
+  return { valid: true as const, changedKeys, message: "تم حفظ " + changedKeys.length + " إعدادًا وتسجيل التغيير." };
 }
 
 export function restoreDefaultSystemSettings(actorEmployeeId: string) {

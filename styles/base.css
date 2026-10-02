@@ -8,6 +8,8 @@ html {
   min-inline-size: 20rem;
   min-block-size: 100%;
   overflow-x: clip;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
   background: var(--background);
   text-size-adjust: 100%;
 }

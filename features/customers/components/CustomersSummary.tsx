@@ -1,18 +1,12 @@
 import { Card } from "@/components/ui/Card";
 import type { CustomerSummaryData } from "../types";
 
-export function CustomersSummary({ data, showFinancial }: { data: CustomerSummaryData; showFinancial: boolean }) {
-  const items = showFinancial
-    ? [
-        ["العملاء في النطاق", data.total],
-        ["العملاء النشطون", data.active],
-        ["لديهم مديونية", data.withDebt],
-        ["يحتاجون مراجعة", data.needsReview],
-      ]
-    : [
-        ["العملاء المسندون", data.total],
-        ["العملاء النشطون", data.active],
-      ];
+export function CustomersSummary({ data }: { data: CustomerSummaryData }) {
+  const items = [
+    ["العملاء في النطاق", data.total],
+    ["العملاء النشطون", data.active],
+    ["يحتاجون مراجعة", data.needsReview],
+  ];
 
   return (
     <section className="customers-summary" aria-label="ملخص العملاء">

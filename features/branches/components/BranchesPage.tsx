@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Drawer } from "@/components/ui/Drawer";
 import { PERMISSION_KEYS } from "@/permissions/keys";
+import { createDefaultCashboxForBranch } from "@/features/finance/services/finance-store";
+import { useEmployees } from "@/features/employees/hooks/use-employees";
 import { BranchForm } from "../forms/BranchForm";
 import { useBranches } from "../hooks/use-branches";
 import { resolveBranchAccess, scopeBranches } from "../permissions";
 import { createBranch, updateBranch } from "../services/branch-store";
-import { filterBranches, summarizeBranches } from "../services/query-branches";
+import { applyEmployeeCounts, filterBranches, summarizeBranches } from "../services/query-branches";
 import type { Branch, BranchFormValues, BranchSort, BranchStatus, BranchType, BranchViewState } from "../types";
 import { BranchEmptyState } from "./BranchEmptyState";
 import { BranchesFilters } from "./BranchesFilters";
@@ -38,9 +40,11 @@ function BranchesAdminPage() {
   const pathname = usePathname();
   const params = useSearchParams();
   const branches = useBranches();
+  const employees = useEmployees();
   const { roles, activeBranch, setActiveBranchId } = useShell();
   const access = useMemo(() => resolveBranchAccess(roles), [roles]);
-  const scoped = useMemo(() => scopeBranches(branches, roles), [branches, roles]);
+  const branchesWithEmployeeCounts = useMemo(() => applyEmployeeCounts(branches, employees), [branches, employees]);
+  const scoped = useMemo(() => scopeBranches(branchesWithEmployeeCounts, roles), [branchesWithEmployeeCounts, roles]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch>();
   const [notice, setNotice] = useState("");
@@ -62,11 +66,11 @@ function BranchesAdminPage() {
   function openAdd() { setEditingBranch(undefined); setFormOpen(true); }
   function openEdit(branch: Branch) { setEditingBranch(branch); setFormOpen(true); }
   function save(values: BranchFormValues) {
-    if (editingBranch) updateBranch(editingBranch.id, values); else createBranch(values);
+    if (editingBranch) updateBranch(editingBranch.id, values); else createDefaultCashboxForBranch(createBranch(values));
     if (editingBranch?.id === activeBranch.id && values.status === "inactive") {
       setActiveBranchId("all");
       setNotice("تم تحديث الموقع والعودة إلى نطاق كل الفروع لأن الموقع الحالي أصبح غير نشط.");
-    } else setNotice(editingBranch ? "تم تحديث بيانات الموقع في الحالة التجريبية." : "تمت إضافة الموقع إلى الحالة التجريبية.");
+    } else setNotice(editingBranch ? "تم تحديث بيانات الموقع بنجاح." : "تمت إضافة الموقع بنجاح.");
     setFormOpen(false);
   }
   function useBranch(branch: Branch) {
@@ -77,12 +81,12 @@ function BranchesAdminPage() {
   return <div className="branches-page" data-branches-state={state}>
     {state === "offline" ? <div className="branches-offline" role="status"><WifiOff aria-hidden size={17} />وضع دون اتصال — القراءة متاحة والحفظ وتغيير الحالة معطلان.</div> : null}
     <BranchesHeader canManage={access.canManage} offline={state === "offline"} onAdd={openAdd} />
-    <Drawer open={formOpen} onOpenChange={setFormOpen} title={editingBranch ? "تعديل الفرع أو الموقع" : "إضافة فرع أو موقع"} description="تُحفظ التغييرات داخل Mock State لهذه الجلسة." variant="auxiliary"><BranchForm key={editingBranch?.id ?? "new-branch"} branches={branches} initialBranch={editingBranch} offline={state === "offline"} onCancel={() => setFormOpen(false)} onSave={save} /></Drawer>
+    <Drawer open={formOpen} onOpenChange={setFormOpen} title={editingBranch ? "تعديل الفرع أو الموقع" : "إضافة فرع أو موقع"} description={editingBranch ? "تحديث البيانات الأساسية وحالة الفرع." : "أدخل البيانات الأساسية فقط، وسيُنشأ كود الفرع تلقائيًا."} variant="auxiliary"><BranchForm key={editingBranch?.id ?? `new-branch-${branches.length}`} branches={branches} initialBranch={editingBranch} offline={state === "offline"} onCancel={() => setFormOpen(false)} onSave={save} /></Drawer>
     {notice ? <div className="branches-notice" role="status"><span>{notice}</span><button type="button" aria-label="إغلاق الرسالة" onClick={() => setNotice("")}>×</button></div> : null}
     {state === "loading" ? <BranchSkeleton /> : <>
       <BranchesSummary data={summarizeBranches(scoped)} />
       <BranchesFilters q={q} type={type} status={status} sort={sort} onSearch={(value) => updateQuery({ q: value })} onFilter={(nextType, nextStatus) => updateQuery({ type: nextType, status: nextStatus })} onSort={(value) => updateQuery({ sort: value })} />
-      {state === "error" ? <Card className="branches-state branches-state--error"><span className="branches-state__icon"><AlertTriangle aria-hidden /></span><h3>تعذر تحميل الفروع والمواقع</h3><p>خطأ تجريبي — Reference Code: BRN-MOCK-503</p><Button type="button" variant="primary" onClick={() => updateQuery({ state: "normal" })}>إعادة المحاولة</Button></Card> : filtered.length === 0 ? <BranchEmptyState canManage={access.canManage && state !== "offline"} onAdd={openAdd} /> : <BranchesGrid branches={filtered} access={access} activeBranchId={activeBranch.id} offline={state === "offline"} onEdit={openEdit} onUse={useBranch} />}
+      {state === "error" ? <Card className="branches-state branches-state--error"><span className="branches-state__icon"><AlertTriangle aria-hidden /></span><h3>تعذر تحميل الفروع والمواقع</h3><p>حدث خطأ أثناء تحميل البيانات — رمز الخطأ: BRN-503</p><Button type="button" variant="primary" onClick={() => updateQuery({ state: "normal" })}>إعادة المحاولة</Button></Card> : filtered.length === 0 ? <BranchEmptyState canManage={access.canManage && state !== "offline"} onAdd={openAdd} /> : <BranchesGrid branches={filtered} access={access} activeBranchId={activeBranch.id} offline={state === "offline"} onEdit={openEdit} onUse={useBranch} />}
     </>}
   </div>;
 }

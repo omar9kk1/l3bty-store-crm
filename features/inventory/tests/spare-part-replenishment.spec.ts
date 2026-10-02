@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getNotificationsSnapshot, resetNotificationStore } from "@/features/notifications/services/notification-service";
 import { resetProductStore } from "@/features/products/services/product-store";
+import { createEmployee, resetEmployeeStore } from "@/features/employees/services/employee-store";
 import {
   getInventorySnapshot,
   recordTechnicianSparePartIntake,
@@ -12,6 +13,7 @@ import {
 describe("technician spare-part replenishment", () => {
   beforeEach(() => {
     resetProductStore();
+    resetEmployeeStore();
     resetNotificationStore();
     resetInventoryService();
   });
@@ -36,6 +38,24 @@ describe("technician spare-part replenishment", () => {
     expect(getNotificationsSnapshot().notifications.filter((item) => item.referenceType === "spare_part_intake")).toHaveLength(2);
   });
 
+  it("creates a named spare part and adds it to workshop stock", () => {
+    const result = recordTechnicianSparePartIntake({
+      partName: "رولمان بلي صغير",
+      branchId: "workshop",
+      quantity: 5,
+      source: "technician_brought",
+      reference: "MANUAL-PART-1",
+      notes: "قطعة جديدة",
+      receivedByEmployeeId: "employee-technician",
+      idempotencyKey: "manual-part-intake-test-1",
+    });
+
+    expect(result.valid).toBe(true);
+    const snapshot = getInventorySnapshot();
+    const intake = snapshot.partIntakes[0];
+    expect(snapshot.balances.find((item) => item.productId === intake.productId && item.branchId === "workshop")?.quantityOnHand).toBe(5);
+  });
+
   it("sends a shortage request to managers and closes it when stock arrives", () => {
     const created = requestSparePartRestock({
       productId: "part-motor-550",
@@ -57,5 +77,79 @@ describe("technician spare-part replenishment", () => {
     expect(recordTechnicianSparePartIntake({ productId: "part-motor-550", branchId: "workshop", quantity: 4, source: "supplier_delivery", reference: "SUPPLIER-4", notes: "وصول طلب التزويد", receivedByEmployeeId: "employee-technician", idempotencyKey: "technician-intake-test-2" }).valid).toBe(true);
     expect(getInventorySnapshot().restockRequests[0]).toMatchObject({ status: "received" });
     expect(getNotificationsSnapshot().notifications.some((item) => item.recipientEmployeeId === "employee-technician" && item.referenceType === "spare_part_restock")).toBe(true);
+  });
+
+  it("accepts a manually entered spare-part name and prevents a duplicate open request", () => {
+    const created = requestSparePartRestock({
+      partName: "سير موتور صغير",
+      branchId: "workshop",
+      requestedQuantity: 3,
+      priority: "normal",
+      reason: "غير موجود في الورشة",
+      requestedByEmployeeId: "employee-technician",
+      idempotencyKey: "manual-restock-name-1",
+    });
+
+    expect(created.valid).toBe(true);
+    expect(getInventorySnapshot().restockRequests[0]).toMatchObject({
+      productId: null,
+      partName: "سير موتور صغير",
+      requestedQuantity: 3,
+    });
+    expect(getInventorySnapshot().restockRequests[0].requestNumber).toMatch(/^REQ-\d+$/);
+    expect(
+      requestSparePartRestock({
+        partName: "  سير موتور صغير  ",
+        branchId: "workshop",
+        requestedQuantity: 1,
+        priority: "urgent",
+        reason: "طلب مكرر",
+        requestedByEmployeeId: "employee-technician",
+        idempotencyKey: "manual-restock-name-2",
+      }).valid,
+    ).toBe(false);
+  });
+
+  it("notifies a locally added technician when management updates their request", () => {
+    const technician = createEmployee({
+      employeeNumber: "",
+      name: "فني محلي",
+      phone: "01012345678",
+      alternatePhone: "",
+      email: "",
+      nationalIdLast4: "",
+      jobTitle: "فني صيانة",
+      status: "active",
+      primaryBranchId: "workshop",
+      assignedBranchIds: ["workshop"],
+      roleKeys: ["maintenance_technician"],
+      hireDate: "2026-08-21",
+      employmentType: "full_time",
+      emergencyContactName: "",
+      emergencyContactPhone: "",
+      address: "",
+      notes: "",
+      adminAccessConfirmed: false,
+      adminAccessReason: "",
+      statusReason: "",
+    });
+    const created = requestSparePartRestock({
+      partName: "بطارية محلية",
+      branchId: "workshop",
+      requestedQuantity: 2,
+      priority: "normal",
+      reason: "مطلوبة للصيانة",
+      requestedByEmployeeId: technician.id,
+      idempotencyKey: "local-technician-restock",
+    });
+    expect(created.valid).toBe(true);
+    const request = getInventorySnapshot().restockRequests[0];
+    expect(reviewSparePartRestockRequest(request.id, "employee-manager", "approved", "تم الاعتماد").valid).toBe(true);
+    expect(getNotificationsSnapshot().notifications).toContainEqual(expect.objectContaining({
+      recipientEmployeeId: technician.id,
+      recipientUserId: technician.userId,
+      referenceId: request.id,
+      status: "unread",
+    }));
   });
 });

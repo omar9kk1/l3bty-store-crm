@@ -4,6 +4,13 @@ import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
+export function resolveWorkspaceBackTarget(pathname: string) {
+  if (pathname === "/rentals/new") return "/rentals";
+  const rentalRoute = pathname.match(/^\/rentals\/([^/]+)(?:\/(extend|close))?$/);
+  if (!rentalRoute) return null;
+  return rentalRoute[2] ? `/rentals/${rentalRoute[1]}` : "/rentals";
+}
+
 export function WorkspaceBackButton() {
   const pathname = usePathname();
   const router = useRouter();
@@ -20,6 +27,12 @@ export function WorkspaceBackButton() {
   if (pathname === "/dashboard") return null;
 
   const goBack = () => {
+    const explicitTarget = resolveWorkspaceBackTarget(pathname);
+    if (explicitTarget) {
+      router.replace(explicitTarget);
+      return;
+    }
+
     const navigation = (window as Window & {
       navigation?: {
         currentEntry?: { index: number };

@@ -1,5 +1,6 @@
 import type{CashboxStatus,CashboxType,PaymentMethod,PaymentSourceType,PaymentStatus,ReceivableStatus,VoucherType}from"../types";
-export const money=(value:number)=>`${value.toLocaleString("ar-EG-u-nu-latn",{minimumFractionDigits:value%1?2:0,maximumFractionDigits:2})} ج.م`;
+export const moneyAmount=(value:number)=>value.toLocaleString("ar-EG-u-nu-latn",{minimumFractionDigits:value%1?2:0,maximumFractionDigits:2});
+export const money=(value:number)=>`${moneyAmount(value)} ج.م`;
 export const cashboxTypeLabels:Record<CashboxType,string>={branch_cash:"نقدية فرع",branch_card:"بطاقات فرع",branch_wallet:"محفظة فرع",central_cash:"خزينة مركزية",clearing:"تسوية"};
 export const cashboxStatusLabels:Record<CashboxStatus,string>={active:"نشطة",inactive:"متوقفة",locked:"مقفلة"};
 export const paymentMethodLabels:Record<PaymentMethod,string>={cash:"نقدي",card:"بطاقة",electronic_wallet:"محفظة",bank_transfer:"تحويل بنكي",mixed:"مختلط"};

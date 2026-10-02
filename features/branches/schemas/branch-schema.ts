@@ -2,13 +2,21 @@ import type { Branch, BranchFormValidation, BranchFormValues } from "../types";
 
 export const EMPTY_BRANCH_FORM: BranchFormValues = {
   name: "", code: "", type: "branch", status: "active", phone: "", alternatePhone: "",
-  city: "", area: "", address: "", managerEmployeeId: "", latitude: "", longitude: "",
+  city: "", area: "", address: "", managerEmployeeId: "unassigned", latitude: "0", longitude: "0",
   geofenceRadiusMeters: "150", opensAt: "10:00", closesAt: "22:00", crossesMidnight: false,
   notes: "", statusReason: "",
 };
 
 export function normalizeBranchCode(code: string) {
   return code.trim().toUpperCase();
+}
+
+export function getNextBranchCode(branches: readonly Branch[]) {
+  const highestSequence = branches.reduce((highest, branch) => {
+    const match = /^BR(\d+)$/.exec(normalizeBranchCode(branch.code));
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+  return `BR${String(highestSequence + 1).padStart(2, "0")}`;
 }
 
 export function findDuplicateBranchCode(code: string, branches: readonly Branch[], excludedBranchId?: string) {
@@ -31,9 +39,6 @@ export function validateBranchForm(values: BranchFormValues, branches: readonly 
   const duplicate = findDuplicateBranchCode(normalizedValues.code, branches, currentBranch?.id);
   if (duplicate) errors.code = "كود الفرع مستخدم لموقع موجود.";
   if (!normalizedValues.city) errors.city = "أدخل المدينة.";
-  if (!normalizedValues.area) errors.area = "أدخل المنطقة.";
-  if (!normalizedValues.address) errors.address = "أدخل العنوان التفصيلي.";
-  if (!normalizedValues.managerEmployeeId) errors.managerEmployeeId = "اختر مدير الموقع.";
   const latitude = Number(normalizedValues.latitude);
   const longitude = Number(normalizedValues.longitude);
   const radius = Number(normalizedValues.geofenceRadiusMeters);

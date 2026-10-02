@@ -26,6 +26,7 @@ export default defineConfig({
       "features/maintenance/tests/**/*.spec.{ts,tsx}",
       "features/inventory/tests/**/*.spec.{ts,tsx}",
       "features/transfers/tests/**/*.spec.{ts,tsx}",
+      "features/branch-needs/tests/**/*.spec.{ts,tsx}",
       "features/finance/tests/**/*.spec.{ts,tsx}",
       "features/shifts/tests/**/*.spec.{ts,tsx}",
       "features/expenses/tests/**/*.spec.{ts,tsx}",

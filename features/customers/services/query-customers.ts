@@ -13,6 +13,7 @@ export function scopeCustomers(
 ) {
   const allowedBranches = new Set(availableBranchIds.filter((id) => id !== "all"));
   return customers.filter((customer) => {
+    if (customer.deletedAt) return false;
     if (!customerMatchesRoles(customer, roles)) return false;
     if (!customer.branchIds.some((branchId) => allowedBranches.has(branchId))) return false;
     return activeBranchId === "all" || customer.branchIds.includes(activeBranchId);
@@ -42,7 +43,6 @@ export function filterCustomers(customers: readonly Customer[], query: CustomerQ
     .filter((customer) => query.activity === "all" || customer.activityTypes.includes(query.activity))
     .sort((first, second) => {
       if (query.sort === "name") return first.name.localeCompare(second.name, "ar");
-      if (query.sort === "balance") return second.outstandingBalance - first.outstandingBalance;
       return second.lastActivityAt.localeCompare(first.lastActivityAt);
     });
 }
@@ -61,7 +61,6 @@ export function summarizeCustomers(customers: readonly Customer[]): CustomerSumm
   return {
     total: customers.length,
     active: customers.filter((customer) => customer.status === "active").length,
-    withDebt: customers.filter((customer) => customer.outstandingBalance > 0).length,
     needsReview: customers.filter((customer) => customer.flags.includes("needs_review")).length,
   };
 }

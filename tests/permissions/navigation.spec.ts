@@ -18,12 +18,9 @@ describe("permission resolution", () => {
     expect(hrefs).not.toContain("/payroll");
   });
 
-  it("combines assigned branches for multiple operational roles", () => {
+  it("keeps maintenance technicians global when combined with another operational role", () => {
     const branches = resolveBranchIds(["sales_employee", "maintenance_technician"]);
-    expect(branches).not.toBe("all");
-    if (branches !== "all") {
-      expect([...branches]).toEqual(expect.arrayContaining(["main", "branch-2", "branch-3", "workshop"]));
-    }
+    expect(branches).toBe("all");
   });
 
   it.each(["sales_employee", "rental_maintenance_employee", "maintenance_technician"] as const)("denies every administrative destination to %s", (role) => {
@@ -58,7 +55,7 @@ describe("permission resolution", () => {
   });
 
   it("keeps branch context independent from administrative page access", () => {
-    expect(resolveBranchIds(["maintenance_technician"])).toEqual(new Set(["workshop"]));
+    expect(resolveBranchIds(["maintenance_technician"])).toBe("all");
     expect(resolveBranchIds(["sales_employee"])).toEqual(new Set(["main", "branch-2", "branch-3"]));
   });
 
@@ -66,13 +63,25 @@ describe("permission resolution", () => {
     expect(hrefsFor("sales_employee")).not.toContain("/rentals");
   });
 
-  it("hides the customer directory from technicians", () => {
-    expect(hrefsFor("maintenance_technician")).not.toContain("/customers");
-    expect(resolvePermissions(["maintenance_technician"]).has(PERMISSION_KEYS.customers)).toBe(false);
+  it("keeps the customer directory for management only", () => {
+    for (const role of ["sales_employee", "rental_maintenance_employee", "maintenance_technician"] as const) {
+      expect(hrefsFor(role)).not.toContain("/customers");
+      expect(resolvePermissions([role]).has(PERMISSION_KEYS.customers)).toBe(false);
+    }
+    expect(hrefsFor("owner")).toContain("/customers");
+    expect(hrefsFor("manager")).toContain("/customers");
   });
 
   it("hides POS from the rental and maintenance intake employee", () => {
     expect(hrefsFor("rental_maintenance_employee")).not.toContain("/sales/pos");
+  });
+
+  it("keeps rental assets and branch needs but hides stock pages from the rental employee", () => {
+    const hrefs = hrefsFor("rental_maintenance_employee");
+    expect(hrefs).toContain("/rental-assets");
+    expect(hrefs).toContain("/branch-needs");
+    expect(hrefs).not.toContain("/inventory");
+    expect(resolvePermissions(["rental_maintenance_employee"]).has(PERMISSION_KEYS.inventoryMovements)).toBe(false);
   });
 
   it("protects every sales and product URL with the centralized policy", () => {
@@ -118,6 +127,15 @@ describe("permission resolution", () => {
     expect(findNavigationItem("/inventory/movements")?.requiredPermission).toBe(PERMISSION_KEYS.inventory);
     expect(findNavigationItem("/inventory/transfers")?.requiredPermission).toBe(PERMISSION_KEYS.transfersView);
     expect(findNavigationItem("/inventory/transfers/new")?.requiredPermission).toBe(PERMISSION_KEYS.transfersView);
+  });
+
+  it("shows branch needs to rental and sales employees without showing the transfer section", () => {
+    for (const role of ["sales_employee", "rental_maintenance_employee"] as const) {
+      const hrefs = hrefsFor(role);
+      expect(hrefs).toContain("/branch-needs");
+      expect(findNavigationItem("/branch-needs")?.requiredPermission).toBe(PERMISSION_KEYS.branchNeedsView);
+      expect(resolvePermissions([role]).has(PERMISSION_KEYS.branchNeedsCreate)).toBe(true);
+    }
   });
 
   it("protects every nested rental and rental-asset URL centrally", () => {

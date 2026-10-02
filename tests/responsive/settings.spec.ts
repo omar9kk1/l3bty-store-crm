@@ -29,7 +29,6 @@ test("operational roles cannot render system settings", async ({ page }) => {
   await page.goto("/settings");
   await page.getByRole("button", { name: /معاينة الأدوار/ }).click();
   await page.getByRole("checkbox", { name: "موظف المبيعات", exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
   await expect(page.locator(".settings-page")).toHaveCount(0);
   await expect(page.locator(".feedback-state[role=alert]")).toBeVisible();
 });

@@ -1,5 +1,4 @@
 export const DEFAULT_SHELL_SCENARIO = {
-  userName: "أحمد حسن",
   connected: true,
   unreadNotifications: 3,
   showActiveRentalStrip: true,

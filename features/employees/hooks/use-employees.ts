@@ -1,6 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { getEmployeesSnapshot, subscribeEmployees } from "../services/employee-store";
-import { EMPLOYEE_FIXTURES } from "../fixtures";
+import type { Employee } from "../types";
 
-export function useEmployees() { return useSyncExternalStore(subscribeEmployees, getEmployeesSnapshot, () => EMPLOYEE_FIXTURES); }
+const EMPTY_EMPLOYEES: readonly Employee[] = [];
+export function useEmployees() { return useSyncExternalStore(subscribeEmployees, getEmployeesSnapshot, () => EMPTY_EMPLOYEES); }

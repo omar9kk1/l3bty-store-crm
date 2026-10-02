@@ -17,10 +17,16 @@ import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { resolvePreviewEmployee } from "@/features/employees/fixtures";
 import { useEmployees } from "@/features/employees/hooks/use-employees";
 import { useProducts } from "@/features/products/hooks/use-products";
+import { useShifts } from "@/features/shifts/hooks/use-shifts";
+import { findOpenShiftForBranch } from "@/features/shifts/services/shift-store";
 import { toBranchOption } from "@/mock-data/branches";
 import { PERMISSION_KEYS } from "@/permissions/keys";
 import { useSales } from "../hooks/use-sales";
-import { canManageSaleOverrides, canViewSales } from "../permissions";
+import {
+  canManageSaleOverrides,
+  canOperatePointOfSale,
+  canViewSales,
+} from "../permissions";
 import {
   addProductToCart,
   calculateCartTotals,
@@ -32,14 +38,17 @@ import {
   setSaleCustomer,
   updateCartLine,
 } from "../services/sales-store";
+import { getPosCatalogItems, getPosStockLabel } from "../services/pos-catalog";
 import type { SalePaymentMethod } from "../types";
 import { SaleWhatsAppAction } from "./SaleWhatsAppAction";
+import { SalesManagementOverview } from "./SalesManagementOverview";
 
 const money = (value: number) => `${value.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 2 })} ج.م`;
 
 export function PosPage() {
   const { roles, permissions } = useShell();
   if (!permissions.has(PERMISSION_KEYS.sales) || !canViewSales(roles)) return <PermissionDeniedState />;
+  if (!canOperatePointOfSale(roles)) return <SalesManagementOverview />;
   return <PosContent />;
 }
 
@@ -52,6 +61,7 @@ function PosContent() {
   const { cart } = sales;
   const customers = useCustomers();
   const branches = useBranches();
+  const { shifts } = useShifts();
   const employees = useEmployees();
   const employee = resolvePreviewEmployee(roles, employees);
   const branchId = activeBranch.id === "all" ? employee.primaryBranchId : activeBranch.id;
@@ -70,23 +80,12 @@ function PosContent() {
 
   useEffect(() => setSaleCartBranch(branchId), [branchId]);
 
-  const visible = products
-    .filter(
-      (product) =>
-        product.active &&
-        (type === "all" || product.type === type) &&
-        `${product.name} ${product.sku} ${product.barcode}`.toLowerCase().includes(query.toLowerCase()),
-    )
-    .map((product) => ({
-      ...product,
-      stock: stocks.find((item) => item.productId === product.id && item.branchId === branchId),
-    }))
-    .filter((item) => (item.stock?.quantityAvailable ?? 0) > 0);
+  const visible = getPosCatalogItems({ products, stocks, branchId, type, query });
   const totals = calculateCartTotals();
   const created = sales.invoices.find((item) => item.id === createdId);
   const customer = customers.find((item) => item.id === (created?.customerId ?? cart.customerId));
   const admin = canManageSaleOverrides(roles);
-  const shiftOpen = (branch?.openShiftCount ?? 0) > 0 && branch?.type === "branch";
+  const shiftOpen = branch?.type === "branch" && Boolean(findOpenShiftForBranch(shifts, branchId));
 
   function checkout() {
     if (state === "offline") {
@@ -140,7 +139,8 @@ function PosContent() {
         <div>
           <Badge tone={shiftOpen ? "success" : "danger"}>{shiftOpen ? "الوردية المالية مفتوحة" : "لا توجد وردية مفتوحة"}</Badge>
           <Link className="ui-button ui-button--secondary ui-button--md" href="/sales/invoices"><ReceiptText size={16} />فواتير المبيعات</Link>
-          <Link className="ui-button ui-button--secondary ui-button--md" href="/sales/returns">المرتجعات</Link>
+          <Link className="ui-button ui-button--secondary ui-button--md" href="/sales/returns?mode=return">المرتجعات</Link>
+          <Link className="ui-button ui-button--secondary ui-button--md" href="/sales/returns?mode=exchange">الاستبدال</Link>
         </div>
       </header>
       {created && customer && branch ? (
@@ -160,14 +160,21 @@ function PosContent() {
               <button role="tab" aria-selected={type === "spare_part"} onClick={() => setType("spare_part")}>قطع الغيار</button>
             </div>
           </Card>
-          {state === "empty" ? <Card className="sale-state"><h3>لا توجد منتجات متاحة</h3></Card> : (
+          {state === "empty" || !visible.length ? <Card className="sale-state"><h3>لا توجد منتجات مطابقة</h3></Card> : (
             <div className="pos-product-grid">
               {visible.map((product) => (
-                <Card className="pos-product-card" key={product.id}>
-                  <div className="pos-product-card__mock">{product.type === "sale_toy" ? "لعبة كهربائية" : "قطعة غيار"}</div>
-                  <h3>{product.name}</h3><span>{product.sku}</span>
-                  <div><strong>{money(product.salePrice)}</strong><Badge tone={(product.stock?.quantityAvailable ?? 0) <= (product.stock?.minimumStock ?? 0) ? "warning" : "neutral"}>متاح {(product.stock?.quantityAvailable ?? 0).toLocaleString("ar-EG-u-nu-latn")}</Badge></div>
-                  <Button onClick={() => { const result = addProductToCart(product.id, branchId); setNotice(result.message); }} icon={<Plus size={16} />}>إضافة للسلة</Button>
+                <Card className={`pos-product-card${product.availableStock === 0 ? " pos-product-card--unavailable" : ""}`} key={product.id}>
+                  {product.imageMockKey.startsWith("data:image/") ? (
+                    <div className="pos-product-card__image">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={product.imageMockKey} alt={product.name} />
+                    </div>
+                  ) : (
+                    <div className="pos-product-card__mock">{product.type === "sale_toy" ? "لعبة للبيع" : "قطعة غيار"}</div>
+                  )}
+                  <h3>{product.name}</h3><span>الباركود: {product.barcode || product.sku}</span>
+                  <div><strong>{money(product.salePrice)}</strong><Badge tone={product.availableStock === 0 ? "danger" : product.availableStock === 1 || product.availableStock <= (product.stock?.minimumStock ?? 0) ? "warning" : "neutral"}>{getPosStockLabel(product.availableStock)}</Badge></div>
+                  <Button disabled={product.availableStock === 0} onClick={() => { const result = addProductToCart(product.id, branchId); setNotice(result.message); }} icon={<Plus size={16} />}>إضافة إلى السلة</Button>
                 </Card>
               ))}
             </div>
@@ -177,7 +184,7 @@ function PosContent() {
           <Card>
             <header><div><ShoppingCart size={19} /><h3>السلة</h3><Badge>{cart.lines.length.toLocaleString("ar-EG-u-nu-latn")}</Badge></div>{cart.lines.length ? <Button size="sm" variant="ghost" onClick={() => { if (window.confirm("تفريغ السلة؟")) clearSaleCart(); }}>تفريغ</Button> : null}</header>
             <div className="pos-customer">
-              <label><span>العميل *</span><select value={cart.customerId} onChange={(event) => setSaleCustomer(event.target.value)}><option value="">اختر العميل</option>{customers.filter((item) => item.status === "active").map((item) => <option value={item.id} key={item.id}>{item.name} · {item.primaryPhone}</option>)}</select></label>
+              <label><span>العميل *</span><select value={cart.customerId} onChange={(event) => setSaleCustomer(event.target.value)}><option value="">اختر العميل</option>{customers.filter((item) => item.status === "active" && !item.deletedAt).map((item) => <option value={item.id} key={item.id}>{item.name} · {item.primaryPhone}</option>)}</select></label>
               <Button size="sm" onClick={() => setCustomerOpen(true)}>إضافة عميل سريعًا</Button>
             </div>
             <div className="cart-lines">
@@ -197,7 +204,7 @@ function PosContent() {
               <dl><div><dt>الإجمالي قبل الخصم</dt><dd>{money(totals.subtotal)}</dd></div><div><dt>خصومات السطور</dt><dd>{money(totals.lineDiscountTotal)}</dd></div><div><dt>خصم الفاتورة</dt><dd>{money(totals.invoiceDiscountAmount)}</dd></div><div><dt>الضريبة</dt><dd>{money(totals.taxTotal)}</dd></div><div><dt>الإجمالي</dt><dd>{money(totals.totalAmount)}</dd></div></dl>
               <label><span>طريقة الدفع</span><select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as SalePaymentMethod)}><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="wallet">محفظة إلكترونية</option><option value="mixed">دفع مختلط</option></select></label>
               <label><span>المبلغ المدفوع</span><input type="number" min="0" placeholder={String(totals.totalAmount)} value={paidValue} onChange={(event) => setPaidValue(event.target.value)} /></label>
-              {admin ? <label className="pos-check"><input type="checkbox" checked={allowDebt} onChange={(event) => setAllowDebt(event.target.checked)} /><span>السماح بمبلغ متبقٍ بموافقة Mock</span></label> : <label className="pos-check"><input type="checkbox" checked={managerApproved} onChange={(event) => setManagerApproved(event.target.checked)} /><span>تمت موافقة الإدارة Mock على التجاوز</span></label>}
+              {admin ? <label className="pos-check"><input type="checkbox" checked={allowDebt} onChange={(event) => setAllowDebt(event.target.checked)} /><span>السماح بمبلغ متبقٍ بموافقة الإدارة</span></label> : <label className="pos-check"><input type="checkbox" checked={managerApproved} onChange={(event) => setManagerApproved(event.target.checked)} /><span>تمت موافقة الإدارة على التجاوز</span></label>}
               <label><span>سبب الخصم أو الموافقة</span><textarea rows={2} value={approvalReason} onChange={(event) => setApprovalReason(event.target.value)} /></label>
               {notice ? <p role="alert">{notice}</p> : null}
               <Button size="lg" variant="primary" disabled={state === "offline" || !shiftOpen} onClick={checkout}>تأكيد البيع وإصدار الفاتورة</Button>
@@ -205,8 +212,8 @@ function PosContent() {
           </Card>
         </aside>
       </div>
-      <Drawer open={customerOpen} onOpenChange={setCustomerOpen} title="إضافة عميل سريعًا" description="يستخدم نموذج العميل الحالي وفحص الهاتف نفسه." variant="auxiliary">
-        <QuickCustomerForm customers={customers} branches={branches.filter((item) => item.type === "branch").map(toBranchOption)} offline={state === "offline"} onSave={(values) => { const newCustomer = createCustomer(values); setSaleCustomer(newCustomer.id); setCustomerOpen(false); }} />
+      <Drawer open={customerOpen} onOpenChange={setCustomerOpen} title="إضافة عميل سريعًا" description="أدخل اسم العميل ورقم هاتفه فقط." variant="auxiliary">
+        <QuickCustomerForm customers={customers.filter((customer) => !customer.deletedAt)} branches={branches.filter((item) => item.type === "branch").map(toBranchOption)} offline={state === "offline"} fixedBranchId={branchId} essentialFieldsOnly onSave={(values) => { const newCustomer = createCustomer(values, "sales"); setSaleCustomer(newCustomer.id); setCustomerOpen(false); }} />
       </Drawer>
     </div>
   );

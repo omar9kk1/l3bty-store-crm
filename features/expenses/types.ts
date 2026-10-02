@@ -10,5 +10,5 @@ export interface Expense { id:string; expenseNumber:string; branchId:string; cat
 export interface ExpenseAudit { id:string; expenseId:string; action:string; actorEmployeeId:string; reason:string; previousValue:string; newValue:string; at:string }
 export interface ExpenseNotification { id:string; employeeId:string|null; title:string; href:string; at:string }
 export interface ExpenseSnapshot { expenses:readonly Expense[]; categories:readonly ExpenseCategory[]; audits:readonly ExpenseAudit[]; notifications:readonly ExpenseNotification[] }
-export interface ExpenseRequestInput { branchId:string; categoryId:string; amount:string; expenseDate:string; description:string; businessPurpose:string; attachmentName?:string; paidPersonally:boolean; reimbursementRequested:boolean; requestedByEmployeeId:string; assignedBranchIds:readonly string[]; idempotencyKey:string }
+export interface ExpenseRequestInput { branchId:string; categoryId:string; categoryName?:string; amount:string; expenseDate:string; description:string; businessPurpose:string; attachmentName?:string; paidPersonally:boolean; reimbursementRequested:boolean; requestedByEmployeeId:string; assignedBranchIds:readonly string[]; idempotencyKey:string }
 

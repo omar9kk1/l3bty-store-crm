@@ -1,1 +1,1 @@
-"use client"; import {useSyncExternalStore} from "react"; import {getRentalSnapshot,subscribeRentalStore} from "../services/rental-store"; export function useRentals(){return useSyncExternalStore(subscribeRentalStore,getRentalSnapshot,getRentalSnapshot)}
+"use client"; import {useSyncExternalStore} from "react"; import {getRentalServerSnapshot,getRentalSnapshot,subscribeRentalStore} from "../services/rental-store"; export function useRentals(){return useSyncExternalStore(subscribeRentalStore,getRentalSnapshot,getRentalServerSnapshot)}

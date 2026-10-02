@@ -15,7 +15,7 @@ import type { ReportPeriodType, ReportQuery } from "../types";
 import { ReportPayloadView } from "./report-ui";
 
 export function ReportViewer({ reportKey }: { reportKey: string }) {
-  const { roles, activeBranch } = useShell();
+  const { roles, activeBranch, availableBranches } = useShell();
   const params = useSearchParams();
   const [message, setMessage] = useState("");
   const [sendId, setSendId] = useState<string | null>(null);
@@ -56,11 +56,10 @@ export function ReportViewer({ reportKey }: { reportKey: string }) {
   };
 
   return <div className="reports-page">
-    <header className="reports-header"><div><span>التقارير</span><h2>{definition.nameAr}</h2><p>{definition.descriptionAr}</p></div><div><Button onClick={() => window.print()}>طباعة</Button><Button disabled={offline || !preview.valid} variant="primary" onClick={save}>حفظ نسخة التقرير</Button></div></header>
+    <header className="reports-header"><div><span>التقارير</span><h2>{definition.nameAr}</h2><p>{definition.descriptionAr}</p></div><div><Button onClick={() => window.print()}>طباعة</Button><Button disabled={offline || !preview.valid} variant="primary" onClick={save}>حفظ نسخة من التقرير</Button></div></header>
     {message ? <p className="reports-feedback" role="status">{message}</p> : null}
-    <Card className="report-filters-card"><form className="report-filters"><label>الفترة<select name="period" defaultValue={period}><option value="daily">يومي</option><option value="weekly">أسبوعي</option><option value="monthly">شهري</option><option value="custom">مخصصة</option></select></label><label>من<input name="from" type="date" defaultValue={from} /></label><label>إلى<input name="to" type="date" defaultValue={to} /></label><label>الفرع<select name="branch" defaultValue={branch}><option value="all">كل الفروع</option><option value="main">الرئيسي</option><option value="branch-2">فرع 2</option><option value="branch-3">فرع 3</option><option value="workshop">الورشة المركزية</option></select></label><div className="report-filter-actions"><label className="report-check"><input name="compare" type="checkbox" value="true" defaultChecked={comparisonEnabled} />مقارنة</label><Button type="submit">تطبيق</Button></div></form></Card>
+    <Card className="report-filters-card"><form className="report-filters"><label>الفترة<select name="period" defaultValue={period}><option value="daily">يومي</option><option value="weekly">أسبوعي</option><option value="monthly">شهري</option><option value="custom">مخصصة</option></select></label><label>من<input name="from" type="date" defaultValue={from} /></label><label>إلى<input name="to" type="date" defaultValue={to} /></label><label>الفرع<select name="branch" defaultValue={branch}>{availableBranches.map((item) => <option key={item.id} value={item.id}>{item.id === "all" ? "كل الفروع" : item.nameAr}</option>)}</select></label><div className="report-filter-actions"><label className="report-check"><input name="compare" type="checkbox" value="true" defaultChecked={comparisonEnabled} />مقارنة</label><Button type="submit">تطبيق</Button></div></form></Card>
     {preview.valid ? <ReportPayloadView payload={preview.payload} /> : <Card className="report-state">{preview.message}</Card>}
-    <Drawer open={Boolean(sendId) && canSendReports(roles)} onOpenChange={(open) => { if (!open) setSendId(null); }} title="إرسال إلى مالك النشاط" description="سيُرسل Snapshot المحفوظ نفسه دون إعادة حساب." variant="auxiliary"><div className="report-send-form"><p>المستلم: مالك النشاط</p><label>ملاحظة إدارية<textarea defaultValue="تقرير إداري للمراجعة" /></label><Button disabled={offline} variant="primary" onClick={send}>تأكيد الإرسال</Button></div></Drawer>
+    <Drawer open={Boolean(sendId) && canSendReports(roles)} onOpenChange={(open) => { if (!open) setSendId(null); }} title="إرسال إلى مالك النشاط" description="سيُرسل التقرير المحفوظ نفسه دون إعادة حساب." variant="auxiliary"><div className="report-send-form"><p>المستلم: مالك النشاط</p><label>ملاحظة إدارية<textarea defaultValue="تقرير إداري للمراجعة" /></label><Button disabled={offline} variant="primary" onClick={send}>تأكيد الإرسال</Button></div></Drawer>
   </div>;
 }
-

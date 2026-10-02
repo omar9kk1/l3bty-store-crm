@@ -1,5 +1,9 @@
 "use client";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { syncMaintenanceNotifications } from "@/features/maintenance/services/maintenance-store";
 import { getNotificationsSnapshot, subscribeNotifications } from "../services/notification-service";
 const serverSnapshot = { notifications: [] as const };
-export function useNotifications() { return useSyncExternalStore(subscribeNotifications, getNotificationsSnapshot, () => serverSnapshot); }
+export function useNotifications() {
+  useEffect(() => { syncMaintenanceNotifications(); }, []);
+  return useSyncExternalStore(subscribeNotifications, getNotificationsSnapshot, () => serverSnapshot);
+}

@@ -72,11 +72,13 @@
 .branch-field input,
 .branch-field select { block-size: 44px; }
 .branch-field textarea { resize: vertical; min-block-size: 76px; padding-block: 10px; }
+.branch-generated-code { display: flex; align-items: center; justify-content: center; min-block-size: 44px; border: 1px dashed var(--line); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink); font-size: 1rem; font-weight: 800; letter-spacing: 0.08em; }
 .branch-field input:focus,
 .branch-field select:focus,
 .branch-field textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 2px rgb(17 17 18 / 8%); }
 .branch-field [aria-invalid="true"] { border-color: var(--status-danger); }
 .branch-field small { color: var(--status-danger); font-size: 0.75rem; }
+.branch-field .branch-field__hint { color: var(--ink-3); }
 .branch-checkbox { display: flex; align-items: center; gap: var(--space-2); min-block-size: 44px; font-size: 0.8125rem; }
 .branch-checkbox input { inline-size: 18px; block-size: 18px; accent-color: var(--ink); }
 .branch-form__notice { display: flex; align-items: flex-start; gap: var(--space-2); border-radius: var(--radius-sm); background: var(--status-warning-bg); color: var(--status-warning); padding: var(--space-3); font-size: 0.8125rem; }

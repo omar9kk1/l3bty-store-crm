@@ -24,7 +24,7 @@ export function RentalReminderCenter({ mode }: { mode: "operations" | "notificat
   return (
     <Card className="rental-reminder-center">
       <header>
-        <div><span><BellRing size={19} /></span><div><h3>{mode === "operations" ? "تنبيهات انتهاء التأجير" : "تذكيرات التأجير"}</h3><p>تنبيهات Mock تظهر أثناء تشغيل التطبيق فقط.</p></div></div>
+        <div><span><BellRing size={19} /></span><div><h3>{mode === "operations" ? "تنبيهات انتهاء التأجير" : "تذكيرات التأجير"}</h3><p>تظهر التنبيهات أثناء تشغيل التطبيق.</p></div></div>
         <Badge tone={notifications.length ? "warning" : "neutral"}>{notifications.length.toLocaleString("ar-EG-u-nu-latn")}</Badge>
       </header>
       {notifications.length ? notifications.map((notification) => {

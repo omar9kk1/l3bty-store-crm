@@ -1,9 +1,331 @@
 "use client";
-import Link from"next/link";import{useState}from"react";import{usePathname,useRouter,useSearchParams}from"next/navigation";import{AlertTriangle,Plus,WifiOff}from"lucide-react";
-import{PermissionDeniedState}from"@/components/feedback/PermissionDeniedState";import{useShell}from"@/components/shell/ShellContext";import{Badge}from"@/components/ui/Badge";import{Button}from"@/components/ui/Button";import{Card}from"@/components/ui/Card";import{Drawer}from"@/components/ui/Drawer";import{useBranches}from"@/features/branches/hooks/use-branches";import{PERMISSION_KEYS}from"@/permissions/keys";
-import{ProductForm}from"../forms/ProductForm";import{useProducts}from"../hooks/use-products";import{canManageProducts,canViewProducts}from"../permissions";
-const typeLabels={sale_toy:"لعبة للبيع",spare_part:"قطعة غيار"}as const;const money=(value:number)=>`${value.toLocaleString("ar-EG-u-nu-latn")} ج.م`;
-export function ProductsPage(){const{roles,permissions}=useShell();if(!permissions.has(PERMISSION_KEYS.products)||!canViewProducts(roles))return<PermissionDeniedState/>;return<ProductsContent/>;}
-function ProductsContent(){const{roles,activeBranch,availableBranches}=useShell();const{products,stocks}=useProducts();const branches=useBranches();const params=useSearchParams();const router=useRouter();const pathname=usePathname();const[open,setOpen]=useState(false);const state=params.get("state")??"normal";const q=(params.get("q")??"").toLowerCase();const type=params.get("type")??"all";const category=params.get("category")??"all";const status=params.get("status")??"all";const lowStock=params.get("lowStock")==="true";const sort=params.get("sort")??"name";const branch=params.get("branch")??activeBranch.id;const allowed=new Set(availableBranches.filter((item)=>item.id!=="all").map((item)=>item.id));const relevantStocks=stocks.filter((stock)=>(branch==="all"?allowed.has(stock.branchId)||roles.includes("owner")||roles.includes("manager"):stock.branchId===branch));const quantity=(id:string)=>relevantStocks.filter((stock)=>stock.productId===id).reduce((sum,stock)=>sum+stock.quantityAvailable,0);const minimum=(id:string)=>relevantStocks.filter((stock)=>stock.productId===id).reduce((sum,stock)=>sum+stock.minimumStock,0);const filtered=products.filter((product)=>(!q||`${product.name} ${product.sku} ${product.barcode}`.toLowerCase().includes(q))&&(type==="all"||product.type===type)&&(category==="all"||product.category===category)&&(status==="all"||(status==="active")===product.active)&&(!lowStock||quantity(product.id)<=minimum(product.id))).sort((a,b)=>sort==="price"?a.salePrice-b.salePrice:sort==="updated"?b.updatedAt.localeCompare(a.updatedAt):a.name.localeCompare(b.name,"ar"));const categories=[...new Set(products.map((product)=>product.category))];function set(key:string,value:string){const next=new URLSearchParams(params.toString());if(!value||value==="all"||value==="false")next.delete(key);else next.set(key,value);router.replace(next.size?`${pathname}?${next}`:pathname,{scroll:false});}
- if(state==="loading")return<div className="product-skeleton">جار تحميل كتالوج المنتجات…</div>;return<div className="products-page">{state==="offline"?<div className="products-offline"><WifiOff size={17}/>دون اتصال — القراءة متاحة والتعديلات معطلة دون Queue حقيقية.</div>:null}<header className="products-header"><div><span>كتالوج الكمية</span><h2>منتجات البيع</h2><p>ألعاب كهربائية للبيع وقطع غيار فقط، من دون أصول التأجير.</p></div>{canManageProducts(roles)?<Button icon={<Plus size={17}/>} onClick={()=>setOpen(true)} disabled={state==="offline"}>إضافة منتج</Button>:null}</header><section className="products-summary"><Card><span>ألعاب البيع</span><strong>{products.filter((product)=>product.type==="sale_toy").length.toLocaleString("ar-EG-u-nu-latn")}</strong></Card><Card><span>قطع الغيار</span><strong>{products.filter((product)=>product.type==="spare_part").length.toLocaleString("ar-EG-u-nu-latn")}</strong></Card><Card><span>منخفض المخزون</span><strong>{products.filter((product)=>quantity(product.id)<=minimum(product.id)).length.toLocaleString("ar-EG-u-nu-latn")}</strong></Card><Card><span>غير نشط</span><strong>{products.filter((product)=>!product.active).length.toLocaleString("ar-EG-u-nu-latn")}</strong></Card></section><Card className="products-filters"><input type="search" aria-label="البحث في المنتجات" placeholder="الاسم أو SKU أو Barcode" value={params.get("q")??""} onChange={(event)=>set("q",event.target.value)}/><select aria-label="النوع" value={type} onChange={(event)=>set("type",event.target.value)}><option value="all">كل الأنواع</option><option value="sale_toy">ألعاب للبيع</option><option value="spare_part">قطع الغيار</option></select><select aria-label="الفئة" value={category} onChange={(event)=>set("category",event.target.value)}><option value="all">كل الفئات</option>{categories.map((item)=><option key={item}>{item}</option>)}</select><select aria-label="الفرع" value={branch} onChange={(event)=>set("branch",event.target.value)}><option value="all">كل الفروع المسندة</option>{availableBranches.filter((item)=>item.id!=="all"&&item.type!=="central_workshop").map((item)=><option key={item.id} value={item.id}>{item.nameAr}</option>)}</select><select aria-label="الحالة" value={status} onChange={(event)=>set("status",event.target.value)}><option value="all">كل الحالات</option><option value="active">نشط</option><option value="inactive">غير نشط</option></select><select aria-label="الترتيب" value={sort} onChange={(event)=>set("sort",event.target.value)}><option value="name">الاسم</option><option value="price">السعر</option><option value="updated">آخر تحديث</option></select><label><input type="checkbox" checked={lowStock} onChange={(event)=>set("lowStock",String(event.target.checked))}/>منخفض المخزون</label></Card>{state==="error"?<Card className="products-state"><AlertTriangle/><h3>تعذر تحميل المنتجات</h3><p>Reference: PRD-MOCK-503</p></Card>:state==="empty"||!filtered.length?<Card className="products-state"><h3>لا توجد منتجات مطابقة</h3><p>غيّر الفلاتر أو أضف منتجًا معتمدًا.</p></Card>:<Card className="products-list"><div className="products-table-wrap"><table><thead><tr><th>المنتج</th><th>SKU</th><th>النوع</th><th>سعر البيع</th><th>الرصيد</th><th>الحد الأدنى</th><th>الحالة</th><th>آخر تحديث</th><th/></tr></thead><tbody>{filtered.map((product)=><tr key={product.id}><td><strong>{product.name}</strong><span>{product.category}</span></td><td dir="ltr">{product.sku}</td><td>{typeLabels[product.type]}</td><td>{money(product.salePrice)}</td><td>{quantity(product.id).toLocaleString("ar-EG-u-nu-latn")}</td><td>{minimum(product.id).toLocaleString("ar-EG-u-nu-latn")}</td><td><Badge tone={product.active?"success":"neutral"}>{product.active?"نشط":"غير نشط"}</Badge></td><td>{new Intl.DateTimeFormat("ar-EG-u-nu-latn").format(new Date(product.updatedAt))}</td><td><Link href={`/products/${product.id}`}>التفاصيل</Link></td></tr>)}</tbody></table></div><div className="products-mobile-list">{filtered.map((product)=><Card className="product-mobile-card" key={product.id}><header><strong>{product.name}</strong><Badge tone={product.active?"success":"neutral"}>{product.active?"نشط":"غير نشط"}</Badge></header><p>{product.sku} · {typeLabels[product.type]}</p><dl><div><dt>السعر</dt><dd>{money(product.salePrice)}</dd></div><div><dt>الرصيد</dt><dd>{quantity(product.id).toLocaleString("ar-EG-u-nu-latn")}</dd></div></dl><Link href={`/products/${product.id}`}>عرض التفاصيل</Link></Card>)}</div></Card>}<Drawer open={open} onOpenChange={setOpen} title="إضافة منتج بيع" description="لعبة كهربائية للبيع أو قطعة غيار فقط." variant="auxiliary"><ProductForm branches={branches} offline={state==="offline"} onCancel={()=>setOpen(false)} onSaved={()=>setOpen(false)}/></Drawer></div>;
+import Link from "next/link";
+import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, Plus, WifiOff } from "lucide-react";
+import { PermissionDeniedState } from "@/components/feedback/PermissionDeniedState";
+import { useShell } from "@/components/shell/ShellContext";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Drawer } from "@/components/ui/Drawer";
+import { useBranches } from "@/features/branches/hooks/use-branches";
+import { PERMISSION_KEYS } from "@/permissions/keys";
+import { ProductForm } from "../forms/ProductForm";
+import { useProducts } from "../hooks/use-products";
+import { canManageProducts, canViewProducts } from "../permissions";
+const typeLabels = { sale_toy: "لعبة للبيع", spare_part: "قطعة غيار" } as const;
+const money = (value: number) =>
+  `${value.toLocaleString("ar-EG-u-nu-latn")} ج.م`;
+export function ProductsPage() {
+  const { roles, permissions } = useShell();
+  if (!permissions.has(PERMISSION_KEYS.products) || !canViewProducts(roles))
+    return <PermissionDeniedState />;
+  return <ProductsContent />;
+}
+function ProductsContent() {
+  const { roles, activeBranch, availableBranches } = useShell();
+  const manager = roles.includes("manager");
+  const ownerReadOnly = roles.includes("owner") && !manager;
+  const { products, stocks } = useProducts();
+  const branches = useBranches();
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const state = params.get("state") ?? "normal";
+  const q = (params.get("q") ?? "").toLowerCase();
+  const type = params.get("type") ?? "all";
+  const category = params.get("category") ?? "all";
+  const status = params.get("status") ?? "all";
+  const lowStock = params.get("lowStock") === "true";
+  const sort = params.get("sort") ?? "name";
+  const branch = params.get("branch") ?? activeBranch.id;
+  const allowed = new Set(
+    availableBranches
+      .filter((item) => item.id !== "all")
+      .map((item) => item.id),
+  );
+  const relevantStocks = stocks.filter((stock) =>
+    branch === "all"
+      ? allowed.has(stock.branchId) ||
+        roles.includes("owner") ||
+        roles.includes("manager")
+      : stock.branchId === branch,
+  );
+  const quantity = (id: string) =>
+    relevantStocks
+      .filter((stock) => stock.productId === id)
+      .reduce((sum, stock) => sum + stock.quantityAvailable, 0);
+  const minimum = (id: string) =>
+    relevantStocks
+      .filter((stock) => stock.productId === id)
+      .reduce((sum, stock) => sum + stock.minimumStock, 0);
+  const filtered = products
+    .filter(
+      (product) =>
+        (!q ||
+          `${product.name} ${product.sku} ${product.barcode}`
+            .toLowerCase()
+            .includes(q)) &&
+        (type === "all" || product.type === type) &&
+        (category === "all" || product.category === category) &&
+        (status === "all" || (status === "active") === product.active) &&
+        (!lowStock || quantity(product.id) <= minimum(product.id)),
+    )
+    .sort((a, b) =>
+      sort === "price"
+        ? a.salePrice - b.salePrice
+        : sort === "updated"
+          ? b.updatedAt.localeCompare(a.updatedAt)
+          : a.name.localeCompare(b.name, "ar"),
+    );
+  const categories = [...new Set(products.map((product) => product.category))];
+  function set(key: string, value: string) {
+    const next = new URLSearchParams(params.toString());
+    if (!value || value === "all" || value === "false") next.delete(key);
+    else next.set(key, value);
+    router.replace(next.size ? `${pathname}?${next}` : pathname, {
+      scroll: false,
+    });
+  }
+  if (state === "loading")
+    return <div className="product-skeleton">جار تحميل كتالوج المنتجات…</div>;
+  return (
+    <div className="products-page">
+      {state === "offline" ? (
+        <div className="products-offline">
+          <WifiOff size={17} />
+          دون اتصال — القراءة متاحة والتعديلات معطلة دون Queue حقيقية.
+        </div>
+      ) : null}
+      <header className="products-header">
+        <div>
+          <span>{ownerReadOnly || manager ? "المخزون" : "كتالوج الكمية"}</span>
+          <h2>{ownerReadOnly ? "متابعة منتجات البيع" : manager ? "إدارة منتجات البيع" : "منتجات البيع"}</h2>
+          <p>{ownerReadOnly ? "تابع المنتجات والأسعار والأرصدة والنواقص دون تعديل البيانات." : manager ? "أضف المنتجات وحدّث بياناتها وتابع أرصدتها بين الفروع." : "ألعاب كهربائية للبيع وقطع غيار فقط، من دون أصول التأجير."}</p>
+        </div>
+        {canManageProducts(roles) ? (
+          <Button
+            icon={<Plus size={17} />}
+            onClick={() => setOpen(true)}
+            disabled={state === "offline"}
+          >
+            إضافة منتج
+          </Button>
+        ) : null}
+      </header>
+      <section className="products-summary">
+        <Card>
+          <span>ألعاب البيع</span>
+          <strong>
+            {products
+              .filter((product) => product.type === "sale_toy")
+              .length.toLocaleString("ar-EG-u-nu-latn")}
+          </strong>
+        </Card>
+        <Card>
+          <span>قطع الغيار</span>
+          <strong>
+            {products
+              .filter((product) => product.type === "spare_part")
+              .length.toLocaleString("ar-EG-u-nu-latn")}
+          </strong>
+        </Card>
+        <Card>
+          <span>منخفض المخزون</span>
+          <strong>
+            {products
+              .filter((product) => quantity(product.id) <= minimum(product.id))
+              .length.toLocaleString("ar-EG-u-nu-latn")}
+          </strong>
+        </Card>
+        <Card>
+          <span>غير نشط</span>
+          <strong>
+            {products
+              .filter((product) => !product.active)
+              .length.toLocaleString("ar-EG-u-nu-latn")}
+          </strong>
+        </Card>
+      </section>
+      <Card className="products-filters">
+        <input
+          type="search"
+          aria-label="البحث في المنتجات"
+          placeholder="الاسم أو SKU أو Barcode"
+          value={params.get("q") ?? ""}
+          onChange={(event) => set("q", event.target.value)}
+        />
+        <select
+          aria-label="النوع"
+          value={type}
+          onChange={(event) => set("type", event.target.value)}
+        >
+          <option value="all">كل الأنواع</option>
+          <option value="sale_toy">ألعاب للبيع</option>
+          <option value="spare_part">قطع الغيار</option>
+        </select>
+        <select
+          aria-label="الفئة"
+          value={category}
+          onChange={(event) => set("category", event.target.value)}
+        >
+          <option value="all">كل الفئات</option>
+          {categories.map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+        <select
+          aria-label="الفرع"
+          value={branch}
+          onChange={(event) => set("branch", event.target.value)}
+        >
+          <option value="all">كل الفروع المسندة</option>
+          {availableBranches
+            .filter(
+              (item) => item.id !== "all" && item.type !== "central_workshop",
+            )
+            .map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.nameAr}
+              </option>
+            ))}
+        </select>
+        <select
+          aria-label="الحالة"
+          value={status}
+          onChange={(event) => set("status", event.target.value)}
+        >
+          <option value="all">كل الحالات</option>
+          <option value="active">نشط</option>
+          <option value="inactive">غير نشط</option>
+        </select>
+        <select
+          aria-label="الترتيب"
+          value={sort}
+          onChange={(event) => set("sort", event.target.value)}
+        >
+          <option value="name">الاسم</option>
+          <option value="price">السعر</option>
+          <option value="updated">آخر تحديث</option>
+        </select>
+        <label>
+          <input
+            type="checkbox"
+            checked={lowStock}
+            onChange={(event) => set("lowStock", String(event.target.checked))}
+          />
+          منخفض المخزون
+        </label>
+      </Card>
+      {state === "error" ? (
+        <Card className="products-state">
+          <AlertTriangle />
+          <h3>تعذر تحميل المنتجات</h3>
+          <p>Reference: PRD-MOCK-503</p>
+        </Card>
+      ) : state === "empty" || !filtered.length ? (
+        <Card className="products-state">
+          <h3>لا توجد منتجات مطابقة</h3>
+          <p>غيّر الفلاتر أو أضف منتجًا معتمدًا.</p>
+        </Card>
+      ) : (
+        <Card className="products-list">
+          <div className="products-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>المنتج</th>
+                  <th>SKU</th>
+                  <th>النوع</th>
+                  <th>سعر البيع</th>
+                  <th>الرصيد</th>
+                  <th>الحد الأدنى</th>
+                  <th>الحالة</th>
+                  <th>آخر تحديث</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((product) => (
+                  <tr key={product.id}>
+                    <td>
+                      <strong>{product.name}</strong>
+                      <span>{product.category}</span>
+                    </td>
+                    <td dir="ltr">{product.sku}</td>
+                    <td>{typeLabels[product.type]}</td>
+                    <td>{money(product.salePrice)}</td>
+                    <td>
+                      {quantity(product.id).toLocaleString("ar-EG-u-nu-latn")}
+                    </td>
+                    <td>
+                      {minimum(product.id).toLocaleString("ar-EG-u-nu-latn")}
+                    </td>
+                    <td>
+                      <Badge tone={product.active ? "success" : "neutral"}>
+                        {product.active ? "نشط" : "غير نشط"}
+                      </Badge>
+                    </td>
+                    <td>
+                      {new Intl.DateTimeFormat("ar-EG-u-nu-latn").format(
+                        new Date(product.updatedAt),
+                      )}
+                    </td>
+                    <td>
+                      <Link href={`/products/${product.id}`}>التفاصيل</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="products-mobile-list">
+            {filtered.map((product) => (
+              <Card className="product-mobile-card" key={product.id}>
+                <header>
+                  <strong>{product.name}</strong>
+                  <Badge tone={product.active ? "success" : "neutral"}>
+                    {product.active ? "نشط" : "غير نشط"}
+                  </Badge>
+                </header>
+                <p>
+                  {product.sku} · {typeLabels[product.type]}
+                </p>
+                <dl>
+                  <div>
+                    <dt>السعر</dt>
+                    <dd>{money(product.salePrice)}</dd>
+                  </div>
+                  <div>
+                    <dt>الرصيد</dt>
+                    <dd>
+                      {quantity(product.id).toLocaleString("ar-EG-u-nu-latn")}
+                    </dd>
+                  </div>
+                </dl>
+                <Link href={`/products/${product.id}`}>عرض التفاصيل</Link>
+              </Card>
+            ))}
+          </div>
+        </Card>
+      )}
+      <Drawer
+        open={open}
+        onOpenChange={setOpen}
+        title="إضافة منتج بيع"
+        description="أدخل اسم المنتج وصورته والباركود وسعري الشراء والبيع."
+        variant="auxiliary"
+      >
+        <ProductForm
+          branches={branches}
+          defaultBranchId={branch === "all" ? undefined : branch}
+          offline={state === "offline"}
+          onCancel={() => setOpen(false)}
+          onSaved={() => setOpen(false)}
+        />
+      </Drawer>
+    </div>
+  );
 }

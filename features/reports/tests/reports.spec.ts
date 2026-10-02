@@ -34,7 +34,7 @@ describe("reports and owner delivery", () => {
 
   it("validates custom periods and builds all approved report definitions", () => {
     expect(buildReportPayload(query({ periodType: "custom", dateFrom: "", dateTo: "" })).valid).toBe(false);
-    for (const reportKey of ["management-summary", "sales", "rentals", "maintenance", "inventory", "transfers", "finance", "shifts", "receivables", "expenses", "payroll", "attendance", "employees", "branches", "customers"]) {
+    for (const reportKey of ["management-summary", "financial-summary", "sales", "rentals", "maintenance", "inventory", "transfers", "finance", "shifts", "receivables", "expenses", "payroll", "attendance", "employees", "branches", "customers"]) {
       const result = buildReportPayload(query({ reportKey }));
       expect(result.valid, reportKey).toBe(true);
       if (result.valid) expect(result.payload.sections.length).toBeGreaterThan(0);

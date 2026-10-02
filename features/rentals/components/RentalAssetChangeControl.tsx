@@ -60,7 +60,7 @@ export function RentalAssetChangeControl({ rental, assets }: { rental: Rental; a
                 onClick={() => setSelectedAssetId(availableAsset.id)}
               >
                 <strong>{availableAsset.name}</strong>
-                <span>{availableAsset.assetNumber} · متاحة</span>
+                <span>رقم اللعبة: <bdi dir="ltr">{availableAsset.barcode}</bdi> · متاحة</span>
               </button>
             ))}
           </div>

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetShiftStore } from "@/features/shifts/services/shift-store";
+import { getShiftSnapshot, resetShiftStore } from "@/features/shifts/services/shift-store";
 import { canCollectMoney, canViewFinance } from "../permissions";
 import { createVoucher, getFinanceSnapshot, recordPayment, resetFinanceStore, reversePayment } from "../services/finance-store";
+import { filterFinanceByBranch } from "../services/finance-view";
 
 describe("finance contracts", () => {
   beforeEach(() => { resetFinanceStore(); resetShiftStore(); });
@@ -9,6 +10,15 @@ describe("finance contracts", () => {
     expect(canViewFinance(["owner"])).toBe(true); expect(canViewFinance(["manager"])).toBe(true);
     expect(canViewFinance(["sales_employee"])).toBe(false); expect(canViewFinance(["rental_maintenance_employee"])).toBe(false);
     expect(canViewFinance(["maintenance_technician"])).toBe(false); expect(canCollectMoney(["maintenance_technician"])).toBe(false);
+  });
+  it("filters every financial total by the selected branch", () => {
+    const finance = getFinanceSnapshot();
+    const scoped = filterFinanceByBranch(finance, getShiftSnapshot().shifts, "main");
+    expect(scoped.cashboxes.every((item) => item.branchId === "main")).toBe(true);
+    expect(scoped.payments.every((item) => item.branchId === "main")).toBe(true);
+    expect(scoped.receivables.every((item) => item.branchId === "main")).toBe(true);
+    expect(scoped.shifts.every((item) => item.branchId === "main")).toBe(true);
+    expect(filterFinanceByBranch(finance, getShiftSnapshot().shifts, "all").payments).toHaveLength(finance.payments.length);
   });
   it("requires an open matching shift for operational collection", () => {
     const base = { branchId: "branch-2", cashboxId: "cash-branch-2", shiftId: null, customerId: "customer-001", sourceType: "sale" as const, sourceId: "sale-test", amount: 100, parts: [{ method: "cash" as const, amount: 100, reference: "" }], employeeId: "employee-sales", roles: ["sales_employee" as const], assignedBranchIds: ["branch-2"], idempotencyKey: "pay-no-shift" };

@@ -32,6 +32,7 @@ describe("dashboard role-aware model", () => {
   it("shows technician workload with spare-part stock only", () => {
     const model = getDashboardData({ ...baseQuery, type: "maintenance" }, ["maintenance_technician"]);
     expect(resolveDashboardMode(["maintenance_technician"])).toBe("technician");
+    expect(dashboardVisibility(["maintenance_technician"])).toMatchObject({ maintenance: true, rentalUtilization: false });
     expect(model.metrics.map((metric) => metric.key)).toEqual(["faults", "repairing", "ready", "parts"]);
     expect(model.stock.every((item) => item.category === "spare_part")).toBe(true);
   });

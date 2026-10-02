@@ -13,17 +13,18 @@ import { useBranches } from "@/features/branches/hooks/use-branches";
 import type { Branch } from "@/features/branches/types";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import type { Customer } from "@/features/customers/types";
-import { useEmployees } from "@/features/employees/hooks/use-employees";
 import type { RentalAsset } from "@/features/rental-assets/types";
+import { useShifts } from "@/features/shifts/hooks/use-shifts";
 import { PERMISSION_KEYS } from "@/permissions/keys";
 import { useRentalClock } from "../hooks/use-rental-clock";
 import { useRentalReminderEvaluation } from "../hooks/use-rental-reminders";
 import { useRentals } from "../hooks/use-rentals";
-import { canUseRentalAdministrativeFilters, canViewRentals } from "../permissions";
+import { canOperateRentals, canUseRentalAdministrativeFilters, canViewRentals } from "../permissions";
 import type { Rental } from "../types";
-import { calculateOpenAmount } from "../services/rental-rules";
-import { getRentalTimerView } from "../services/rental-timer-view";
+import { calculateOpenShiftRentalCollections, calculateRentalLiveAmount, canExtendRental, isRentalInCurrentShift } from "../services/rental-rules";
+import { getRentalTimerView, isRentalAwaitingDecision } from "../services/rental-timer-view";
 import { durationLabels, money, rentalStatusLabels, statusTone, time } from "./rental-labels";
+import { rentalAssetReference } from "./rental-asset-reference";
 import { RentalWhatsAppAction } from "./RentalWhatsAppAction";
 
 export function RentalsPage() {
@@ -36,7 +37,7 @@ const rentalStatusDescriptions: Record<Rental["status"], string> = {
   selecting: "ما زالت في مرحلة الاختيار والتجربة",
   active: "التأجيرة تعمل الآن",
   near_end: "اقترب موعد انتهاء التأجيرة",
-  additional_time: "تجاوزت التأجيرة مدتها المحددة",
+  additional_time: "انتهى الوقت وينتظر اختيار التمديد أو الإنهاء",
   completed: "انتهت التأجيرة وتم إغلاقها",
   cancelled: "أُلغيت قبل بدء التشغيل",
 };
@@ -51,9 +52,7 @@ const rentalStatusPriority: Record<Rental["status"], number> = {
 };
 
 function rentalLiveAmount(rental: Rental, referenceMs: number) {
-  if (rental.durationType !== "open_time" || !rental.startedAt || !["active", "near_end", "additional_time"].includes(rental.status)) return rental.currentAmount;
-  const seconds = Math.max(0, Math.floor((referenceMs - new Date(rental.startedAt).getTime()) / 1000));
-  return calculateOpenAmount(seconds, rental.pricePerHour);
+  return calculateRentalLiveAmount(rental, referenceMs);
 }
 function RentalListTimer({ rental, referenceMs }: { rental: Rental; referenceMs: number }) {
   const timer = getRentalTimerView(rental, referenceMs);
@@ -86,29 +85,31 @@ function RentalListTimer({ rental, referenceMs }: { rental: Rental; referenceMs:
     </div>
   );
 }
-function RentalActions({ rental, asset, customer, branch }: { rental: Rental; asset?: RentalAsset; customer?: Customer; branch?: Branch }) {
+function RentalActions({ rental, asset, customer, branch, operational, awaitingDecision }: { rental: Rental; asset?: RentalAsset; customer?: Customer; branch?: Branch; operational: boolean; awaitingDecision: boolean }) {
   const reminderVisible = ["due", "opened", "failed_to_open", "customer_phone_missing"].includes(rental.reminderStatus);
   const active = ["active", "near_end", "additional_time"].includes(rental.status);
   return (
     <div className="rental-list-actions">
-      {reminderVisible ? <Badge tone="warning">متبقي 5 دقائق</Badge> : null}
-      {reminderVisible && asset && customer && branch ? <RentalWhatsAppAction rental={rental} asset={asset} customer={customer} branch={branch} kind="reminder" compact /> : null}
-      {rental.status === "completed" && asset && customer && branch ? <RentalWhatsAppAction rental={rental} asset={asset} customer={customer} branch={branch} kind="invoice" compact /> : null}
-      {active ? <a className="ui-button ui-button--primary ui-button--sm rental-list-actions__close" href={"/rentals/"+rental.id+"/close"}>إنهاء</a> : null}
+      {operational && awaitingDecision ? <div className="rental-end-decision" role="alert"><strong>انتهى الوقت — تمديد أم إنهاء؟</strong><div><Link className="ui-button ui-button--secondary ui-button--sm" href={`/rentals/${rental.id}/extend`}>تمديد</Link><Link className="ui-button ui-button--primary ui-button--sm" href={`/rentals/${rental.id}/close`}>إنهاء</Link></div></div> : null}
+      {operational && reminderVisible ? <Badge tone="warning">متبقي 5 دقائق</Badge> : null}
+      {operational && reminderVisible && asset && customer && branch ? <RentalWhatsAppAction rental={rental} asset={asset} customer={customer} branch={branch} kind="reminder" compact /> : null}
+      {operational && rental.status === "completed" && asset && customer && branch ? <RentalWhatsAppAction rental={rental} asset={asset} customer={customer} branch={branch} kind="invoice" compact /> : null}
+      {operational && active && !awaitingDecision ? <Link className="ui-button ui-button--primary ui-button--sm rental-list-actions__close" href={"/rentals/"+rental.id+"/close"}>إنهاء</Link> : null}
       <Link className="ui-button ui-button--secondary ui-button--sm" href={`/rentals/${rental.id}`}>{"\u0639\u0631\u0636 \u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644"}</Link>
     </div>
   );
 }
 
 
-function RentalCard({ rental, asset, customer, branch, referenceMs }: { rental: Rental; asset?: RentalAsset; customer?: Customer; branch?: Branch; referenceMs: number }) {
+function RentalCard({ rental, asset, customer, branch, referenceMs, operational }: { rental: Rental; asset?: RentalAsset; customer?: Customer; branch?: Branch; referenceMs: number; operational: boolean }) {
   const live = ["active", "near_end", "additional_time"].includes(rental.status);
+  const awaitingDecision = isRentalAwaitingDecision(rental, referenceMs);
   return (
     <Card className={`rental-card${live ? " rental-card--live" : ""}`}>
       <header className="rental-card__header">
         <div>
           <bdi dir="ltr">{rental.rentalNumber}</bdi>
-          <span>{branch?.name ?? rental.branchId}</span>
+          <span>{branch?.name ?? "فرع غير معروف"}</span>
         </div>
         <Badge tone={statusTone(rental.status)}>{rentalStatusLabels[rental.status]}</Badge>
       </header>
@@ -123,7 +124,7 @@ function RentalCard({ rental, asset, customer, branch, referenceMs }: { rental: 
           <div className="rental-card__asset">
             <span>{"\u0627\u0644\u0644\u0639\u0628\u0629"}</span>
             <h3>{asset?.name ?? "\u0623\u0635\u0644 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641"}</h3>
-            <bdi dir="ltr">{asset?.assetNumber ?? rental.assetId}</bdi>
+            <span>رقم اللعبة: <bdi dir="ltr">{rentalAssetReference(asset?.barcode, asset?.assetNumber)}</bdi></span>
           </div>
           <dl>
             <div><dt>{"\u0627\u0644\u0639\u0645\u064a\u0644"}</dt><dd>{customer?.name ?? "\u0639\u0645\u064a\u0644 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641"}</dd></div>
@@ -135,7 +136,7 @@ function RentalCard({ rental, asset, customer, branch, referenceMs }: { rental: 
       </div>
 
       <footer className="rental-card__footer">
-        <RentalActions rental={rental} asset={asset} customer={customer} branch={branch} />
+        <RentalActions rental={rental} asset={asset} customer={customer} branch={branch} operational={operational} awaitingDecision={awaitingDecision} />
       </footer>
     </Card>
   );
@@ -147,17 +148,17 @@ function RentalsContent() {
   const pathname = usePathname();
   const { roles, activeBranch, availableBranches } = useShell();
   const { rentals, assets } = useRentals();
+  const { shifts } = useShifts();
   const customers = useCustomers();
   const branches = useBranches();
-  const employees = useEmployees();
   const state = params.get("state") ?? "normal";
   const referenceMs = useRentalClock(state !== "offline");
   const administrativeFilters = canUseRentalAdministrativeFilters(roles);
+  const operational = canOperateRentals(roles);
   const status = params.get("status") ?? "all";
   const duration = params.get("duration") ?? "all";
   const customerFilter = params.get("customer") ?? "all";
   const assetFilter = params.get("asset") ?? "all";
-  const employeeFilter = administrativeFilters ? params.get("employee") ?? "all" : "all";
   const requestedBranch = params.get("branch") ?? activeBranch.id;
   const branch = administrativeFilters ? requestedBranch : activeBranch.id;
   const allowed = new Set(availableBranches.filter((item) => item.id !== "all").map((item) => item.id));
@@ -165,19 +166,24 @@ function RentalsContent() {
     (administrativeFilters || allowed.has(item.branchId))
     && (branch === "all" || item.branchId === branch),
   );
+  const activeRentals = scopedRentals.filter(canExtendRental);
+  const openShiftIds = new Set(shifts.filter((item) => item.status === "open").map((item) => item.id));
+  const currentShiftRentals = scopedRentals.filter((item) => isRentalInCurrentShift(item, openShiftIds));
+  const shiftCollected = calculateOpenShiftRentalCollections(scopedRentals, openShiftIds);
   const filterBase = scopedRentals.filter((item) =>
     (duration === "all" || item.durationType === duration)
     && (customerFilter === "all" || item.customerId === customerFilter)
-    && (assetFilter === "all" || item.assetId === assetFilter)
-    && (employeeFilter === "all" || item.employeeId === employeeFilter),
+    && (assetFilter === "all" || item.assetId === assetFilter),
   );
-  const filtered = (state === "empty" ? [] : filterBase).filter((item) => status === "all" || item.status === status);
+  const filtered = state === "empty"
+    ? []
+    : administrativeFilters
+      ? currentShiftRentals
+      : filterBase.filter((item) => status === "all" || item.status === status);
   const scopedCustomerIds = new Set(scopedRentals.map((item) => item.customerId));
   const scopedAssetIds = new Set(scopedRentals.map((item) => item.assetId));
-  const scopedEmployeeIds = new Set(scopedRentals.map((item) => item.employeeId));
   const filterCustomers = customers.filter((item) => scopedCustomerIds.has(item.id));
   const filterAssets = assets.filter((item) => scopedAssetIds.has(item.id));
-  const filterEmployees = employees.filter((item) => scopedEmployeeIds.has(item.id));
   const customerMap = new Map(customers.map((item) => [item.id, item]));
   const assetMap = new Map(assets.map((item) => [item.id, item]));
   const branchMap = new Map(branches.map((item) => [item.id, item]));
@@ -193,22 +199,26 @@ function RentalsContent() {
     <div className="rentals-page">
       {state === "offline" ? <div className="rentals-offline"><WifiOff size={17} />دون اتصال — القراءة متاحة والإجراءات معطلة، والعداد يعرض آخر مرجع معروف.</div> : null}
       <header className="rentals-header">
-        <div><span>التشغيل</span><h2>التأجيرات</h2><p>تأجيرات ثابتة ووقت مفتوح ضمن نطاق الفرع.</p></div>
-        <Link aria-disabled={state === "offline"} className="ui-button ui-button--primary ui-button--md" href={state === "offline" ? "#" : "/rentals/new"}><Plus size={17} />تأجير جديد</Link>
+        <div><span>التشغيل</span><h2>التأجيرات</h2><p>{administrativeFilters ? "متابعة الألعاب المؤجرة والتحصيل منذ فتح الوردية." : "تأجيرات ثابتة ووقت مفتوح ضمن نطاق الفرع."}</p></div>
+        {operational ? <Link aria-disabled={state === "offline"} className="ui-button ui-button--primary ui-button--md" href={state === "offline" ? "#" : "/rentals/new"}><Plus size={17} />تأجير جديد</Link> : null}
       </header>
-      <section className="rental-summary">
-        {Object.entries(rentalStatusLabels).map(([key, label]) => <Card key={key}><span>{label}</span><strong>{filterBase.filter((item) => item.status === key).length.toLocaleString("ar-EG-u-nu-latn")}</strong></Card>)}
+      <section className={`rental-summary${administrativeFilters ? " rental-summary--administrative" : ""}`}>
+        {administrativeFilters ? <>
+          <Card data-testid="active-rental-count"><span>الألعاب المؤجرة الآن</span><strong>{activeRentals.length.toLocaleString("ar-EG-u-nu-latn")}</strong></Card>
+          <Card data-testid="rental-shift-collected"><span>تحصيل التأجير في الوردية</span><strong>{money(shiftCollected)}</strong></Card>
+        </> : Object.entries(rentalStatusLabels).map(([key, label]) => <Card key={key}><span>{label}</span><strong>{filterBase.filter((item) => item.status === key).length.toLocaleString("ar-EG-u-nu-latn")}</strong></Card>)}
       </section>
       <Card className={`rental-filters${administrativeFilters ? "" : " rental-filters--scoped"}`}>
         {administrativeFilters ? <select aria-label="الفرع" value={branch} onChange={(event) => setFilter("branch", event.target.value)}><option value="all">كل الفروع</option>{availableBranches.filter((item) => item.id !== "all").map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</select> : null}
-        <select aria-label="الحالة" value={status} onChange={(event) => setFilter("status", event.target.value)}><option value="all">كل الحالات</option>{Object.entries(rentalStatusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
-        <select aria-label="نوع المدة" value={duration} onChange={(event) => setFilter("duration", event.target.value)}><option value="all">كل المدد</option>{Object.entries(durationLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
-        <select aria-label="العميل" value={customerFilter} onChange={(event) => setFilter("customer", event.target.value)}><option value="all">كل عملاء الفرع</option>{filterCustomers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        <select aria-label="الأصل" value={assetFilter} onChange={(event) => setFilter("asset", event.target.value)}><option value="all">كل أصول الفرع</option>{filterAssets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        {administrativeFilters ? <select aria-label="الموظف" value={employeeFilter} onChange={(event) => setFilter("employee", event.target.value)}><option value="all">كل الموظفين</option>{filterEmployees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select> : null}
+        {!administrativeFilters ? <>
+          <select aria-label="الحالة" value={status} onChange={(event) => setFilter("status", event.target.value)}><option value="all">كل الحالات</option>{Object.entries(rentalStatusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
+          <select aria-label="نوع المدة" value={duration} onChange={(event) => setFilter("duration", event.target.value)}><option value="all">كل المدد</option>{Object.entries(durationLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
+          <select aria-label="العميل" value={customerFilter} onChange={(event) => setFilter("customer", event.target.value)}><option value="all">كل عملاء الفرع</option>{filterCustomers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+          <select aria-label="الأصل" value={assetFilter} onChange={(event) => setFilter("asset", event.target.value)}><option value="all">كل أصول الفرع</option>{filterAssets.map((item) => <option key={item.id} value={item.id}>{item.name} · رقم اللعبة {item.barcode}</option>)}</select>
+        </> : null}
       </Card>
       {state === "error" ? (
-        <Card className="rental-state"><AlertTriangle /><h3>تعذر تحميل التأجيرات</h3><p>Reference Code: RNT-MOCK-503</p><Button onClick={() => setFilter("state", "normal")}>إعادة المحاولة</Button></Card>
+        <Card className="rental-state"><AlertTriangle /><h3>تعذر تحميل التأجيرات</h3><p>رمز الخطأ: RNT-503</p><Button onClick={() => setFilter("state", "normal")}>إعادة المحاولة</Button></Card>
       ) : filtered.length ? (
         <section className="rental-card-grid" aria-label={"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0623\u062c\u064a\u0631\u0627\u062a"}>
           {[...filtered]
@@ -217,9 +227,9 @@ function RentalsContent() {
               const customer = customerMap.get(item.customerId);
               const asset = assetMap.get(item.assetId);
               const itemBranch = branchMap.get(item.branchId);
-              return <RentalCard key={item.id} rental={item} asset={asset} customer={customer} branch={itemBranch} referenceMs={referenceMs} />;
+              return <RentalCard key={item.id} rental={item} asset={asset} customer={customer} branch={itemBranch} referenceMs={referenceMs} operational={operational} />;
             })}
-        </section>) : <Card className="rental-state"><h3>لا توجد تأجيرات ضمن النطاق</h3><p>غيّر الفلاتر أو ابدأ تأجيرًا جديدًا.</p></Card>}
+        </section>) : <Card className="rental-state"><h3>{administrativeFilters ? "لا توجد تأجيرات في الوردية الحالية" : "لا توجد تأجيرات ضمن النطاق"}</h3>{!administrativeFilters ? <p>غيّر الفلاتر أو ابدأ تأجيرًا جديدًا.</p> : null}</Card>}
     </div>
   );
 }

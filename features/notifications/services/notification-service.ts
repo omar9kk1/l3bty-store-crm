@@ -1,12 +1,15 @@
 import { NOTIFICATION_FIXTURES } from "../fixtures";
 import type { AppNotification, NotificationInput, NotificationsSnapshot } from "../types";
+import { readLocalTestData, removeLocalTestData, writeLocalTestData } from "@/lib/local-test-data";
 
 const NOW = "2026-08-08T15:30:00.000Z";
-let notifications: readonly AppNotification[] = NOTIFICATION_FIXTURES.map((item) => ({ ...item, metadata: { ...item.metadata } }));
+const STORAGE_KEY = "l3bty-local-notifications-v1";
+const stored = readLocalTestData<{ notifications: AppNotification[]; sequence: number }>(STORAGE_KEY, 1, { notifications: [], sequence: 100 });
+let notifications: readonly AppNotification[] = stored.notifications.map((item) => ({ ...item, metadata: { ...item.metadata } }));
 let snapshot: NotificationsSnapshot = { notifications };
-let sequence = 100;
+let sequence = stored.sequence;
 const listeners = new Set<() => void>();
-const emit = () => { snapshot = { notifications }; listeners.forEach((listener) => listener()); };
+const emit = (persist = true) => { snapshot = { notifications }; if (persist) writeLocalTestData(STORAGE_KEY, 1, { notifications, sequence }); listeners.forEach((listener) => listener()); };
 
 export function subscribeNotifications(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); }
 export function getNotificationsSnapshot() { return snapshot; }
@@ -32,4 +35,10 @@ export function dismissNotification(id: string, recipientUserId: string) {
 export function markAllNotificationsRead(recipientUserId: string) {
   notifications = notifications.map((item) => item.recipientUserId === recipientUserId && item.status === "unread" ? { ...item, status: "read", readAt: NOW } : item); emit();
 }
-export function resetNotificationStore() { notifications = NOTIFICATION_FIXTURES.map((item) => ({ ...item, metadata: { ...item.metadata } })); sequence = 100; emit(); }
+export function markNotificationActedByReference(referenceType: string, referenceId: string, recipientUserId: string) {
+  let changed = false;
+  notifications = notifications.map((item) => item.referenceType === referenceType && item.referenceId === referenceId && item.recipientUserId === recipientUserId && !["acted", "dismissed", "expired"].includes(item.status) ? (changed = true, { ...item, status: "acted", readAt: item.readAt ?? NOW, actedAt: NOW }) : item);
+  if (changed) emit();
+  return changed;
+}
+export function resetNotificationStore() { notifications = NOTIFICATION_FIXTURES.map((item) => ({ ...item, metadata: { ...item.metadata } })); sequence = 100; removeLocalTestData(STORAGE_KEY); emit(false); }

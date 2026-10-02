@@ -1,14 +1,17 @@
 import Link from "next/link";
-import { Building2, MapPin, Pencil, RadioTower, UserRound, Warehouse, Wrench } from "lucide-react";
+import { Building2, Landmark, MapPin, Pencil, RadioTower, UserRound, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { BRANCH_MANAGER_FIXTURES } from "../fixtures";
+import { useEmployees } from "@/features/employees/hooks/use-employees";
+import { money } from "@/features/finance/components/finance-labels";
+import { useFinance } from "@/features/finance/hooks/use-finance";
 import type { Branch, BranchAccess } from "../types";
 import { branchStatusLabels, branchStatusTones, branchTypeLabels } from "./branch-labels";
 
 export function BranchCard({ branch, access, active, offline, onEdit, onUse }: { branch: Branch; access: BranchAccess; active: boolean; offline: boolean; onEdit: () => void; onUse: () => void }) {
-  const manager = BRANCH_MANAGER_FIXTURES.find((item) => item.id === branch.managerEmployeeId)?.name ?? "غير محدد";
+  const manager = useEmployees().find((item) => item.id === branch.managerEmployeeId)?.name ?? "غير محدد";
+  const cashboxBalance = useFinance().cashboxes.filter((cashbox) => cashbox.branchId === branch.id && cashbox.type === "branch_cash").reduce((sum, cashbox) => sum + cashbox.currentBalance, 0);
 
   return (
     <Card className="branch-card" data-branch-card={branch.id}>
@@ -24,12 +27,11 @@ export function BranchCard({ branch, access, active, offline, onEdit, onUse }: {
           <span className="branch-code">{branch.code}</span>
         </div>
       </div>
-      <p className="branch-card__address"><MapPin aria-hidden size={16} />{branch.address}، {branch.area}، {branch.city}</p>
+      <p className="branch-card__address"><MapPin aria-hidden size={16} />{branch.city}</p>
       {access.canManage ? <div className="branch-card__manager"><UserRound aria-hidden size={16} /><span>المسؤول: {manager}</span></div> : null}
       <dl className="branch-card__stats">
         {access.canViewEmployees ? <div><dt><UserRound aria-hidden size={14} />الموظفون</dt><dd>{branch.assignedEmployeeCount}</dd></div> : null}
-        {access.canViewWarehouses ? <div><dt><Warehouse aria-hidden size={14} />المخازن</dt><dd>{branch.warehouseCount}</dd></div> : null}
-        {access.canViewCashboxes && branch.type === "branch" ? <div><dt>الخزائن</dt><dd>{branch.cashboxCount}</dd></div> : null}
+        {access.canViewCashboxes && branch.type === "branch" ? <div><dt><Landmark aria-hidden size={14} />رصيد الخزنة</dt><dd>{money(cashboxBalance)}</dd></div> : null}
         {access.canViewShifts ? <div><dt><RadioTower aria-hidden size={14} />ورديات مفتوحة</dt><dd>{branch.openShiftCount}</dd></div> : null}
         {access.canViewMaintenance ? <div><dt><Wrench aria-hidden size={14} />صيانة مفتوحة</dt><dd>{branch.openMaintenanceOrderCount}</dd></div> : null}
       </dl>

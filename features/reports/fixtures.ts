@@ -2,6 +2,7 @@ import type{ReportDefinition,ReportDelivery,ReportSnapshot}from"./types";
 const sections=[{id:"summary",titleAr:"المؤشرات",kind:"metrics"as const},{id:"details",titleAr:"التفاصيل",kind:"table"as const}];const common={requiredPermission:"reports.view"as const,allowedPeriods:["daily","weekly","monthly","custom"]as const,allowedFilters:["period","from","to","branch","employee","status","type","compare"],exportFormats:["print","json","csv"]as const,sections};
 export const REPORT_DEFINITIONS:readonly ReportDefinition[]=[
  {key:"management-summary",nameAr:"ملخص الإدارة",descriptionAr:"مؤشرات النشاط والمالية والتشغيل والفروع.",category:"إدارة",sensitive:true,...common},
+ {key:"financial-summary",nameAr:"الملخص المالي الشامل",descriptionAr:"التحصيلات والمصروفات والرواتب والمدفوعات الأخرى وصافي الحسابات في تقرير واحد.",category:"مالية",sensitive:true,...common},
  {key:"sales",nameAr:"المبيعات",descriptionAr:"الفواتير والمرتجعات والمنتجات وأداء البيع.",category:"مبيعات",sensitive:false,...common},
  {key:"rentals",nameAr:"التأجير",descriptionAr:"التأجيرات والإيرادات والمدد والتذكيرات اليدوية.",category:"تشغيل",sensitive:false,...common},
  {key:"maintenance",nameAr:"الصيانة",descriptionAr:"البلاغات والأوامر والفنيون وقطع الغيار.",category:"صيانة",sensitive:false,...common},

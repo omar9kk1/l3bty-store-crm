@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { useShell } from "@/components/shell/ShellContext";
@@ -21,9 +20,10 @@ interface RentalWhatsAppActionProps {
   branch: Branch;
   kind: "invoice" | "reminder";
   compact?: boolean;
+  totalAmount?: number;
 }
 
-export function RentalWhatsAppAction({ rental, asset, customer, branch, kind, compact = false }: RentalWhatsAppActionProps) {
+export function RentalWhatsAppAction({ rental, asset, customer, branch, kind, compact = false, totalAmount = rental.currentAmount }: RentalWhatsAppActionProps) {
   const { roles } = useShell();
   const [notice, setNotice] = useState("");
 
@@ -42,7 +42,7 @@ export function RentalWhatsAppAction({ rental, asset, customer, branch, kind, co
         startedAt: rental.startedAt,
         endedAt: rental.closedAt ?? rental.expectedEndAt,
         durationLabel,
-        totalAmount: rental.currentAmount,
+        totalAmount,
         paidAmount: rental.paidAmount,
       })
     : rental.expectedEndAt
@@ -63,7 +63,7 @@ export function RentalWhatsAppAction({ rental, asset, customer, branch, kind, co
           {kind === "invoice" ? "إرسال الفاتورة عبر واتساب" : "تذكير العميل على واتساب"}
         </Button>
         <small>لا يوجد رقم واتساب صالح لهذا العميل</small>
-        <Link href={`/customers/${customer.id}`}>فتح ملف العميل وتعديل الرقم</Link>
+        <small>استخدم رقمًا صحيحًا عند اختيار العميل أو إضافته داخل التأجير.</small>
       </div>
     );
   }
@@ -79,7 +79,7 @@ export function RentalWhatsAppAction({ rental, asset, customer, branch, kind, co
           startedAt: rental.startedAt,
           endedAt: rental.closedAt ?? rental.expectedEndAt,
           durationLabel,
-          totalAmount: rental.currentAmount,
+          totalAmount,
           paidAmount: rental.paidAmount,
           receiptUrl: `${window.location.origin}/rentals/${rental.id}`,
         })

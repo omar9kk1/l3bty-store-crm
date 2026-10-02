@@ -4,10 +4,26 @@ import { describe, expect, it } from "vitest";
 import { BRANCH_FIXTURES } from "@/mock-data/branches";
 import { DASHBOARD_BRANCH_FIXTURES } from "@/features/dashboard/fixtures";
 import { canAccessBranch, resolveBranchAccess, scopeBranches } from "../permissions";
-import { EMPTY_BRANCH_FORM, findDuplicateBranchCode, validateBranchForm } from "../schemas/branch-schema";
-import { filterBranches, matchesBranchSearch } from "../services/query-branches";
+import { EMPTY_BRANCH_FORM, findDuplicateBranchCode, getNextBranchCode, validateBranchForm } from "../schemas/branch-schema";
+import { applyEmployeeCounts, filterBranches, matchesBranchSearch } from "../services/query-branches";
+import type { Employee } from "@/features/employees/types";
 
 describe("branch directory and filters", () => {
+  it("derives branch employee totals from the current employee assignments", () => {
+    const employee = {
+      id: "employee-live-count",
+      assignedBranchIds: ["main", "workshop", "workshop"],
+      roleAssignments: [{ roleKey: "maintenance_technician", active: true }],
+    } as unknown as Employee;
+    const branches = applyEmployeeCounts(
+      BRANCH_FIXTURES.map((branch) => ({ ...branch, assignedEmployeeCount: 0, technicianCount: 0 })),
+      [employee],
+    );
+
+    expect(branches.find((branch) => branch.id === "main")).toMatchObject({ assignedEmployeeCount: 1, technicianCount: 1 });
+    expect(branches.find((branch) => branch.id === "workshop")).toMatchObject({ assignedEmployeeCount: 1, technicianCount: 1 });
+    expect(branches.find((branch) => branch.id === "branch-2")).toMatchObject({ assignedEmployeeCount: 0, technicianCount: 0 });
+  });
   it("uses the shared branch identity in Dashboard", () => {
     expect(DASHBOARD_BRANCH_FIXTURES.map(({ id, name, code }) => ({ id, name, code }))).toEqual(BRANCH_FIXTURES.map(({ id, name, code }) => ({ id, name, code })));
   });
@@ -28,6 +44,24 @@ describe("branch form validation", () => {
     const result = validateBranchForm({ ...valid, code: "br01" }, BRANCH_FIXTURES);
     expect(result.valid).toBe(false);
     expect(result.duplicate?.id).toBe("main");
+  });
+  it("generates the next branch code automatically without reusing gaps", () => {
+    expect(getNextBranchCode([])).toBe("BR01");
+    expect(getNextBranchCode(BRANCH_FIXTURES)).toBe("BR04");
+    expect(getNextBranchCode([
+      { ...BRANCH_FIXTURES[0], code: "BR02" },
+      { ...BRANCH_FIXTURES[1], code: "BR09" },
+      { ...BRANCH_FIXTURES[2], code: "WORKSHOP" },
+    ])).toBe("BR10");
+  });
+  it("accepts the essential create fields without phone, manager, or coordinates", () => {
+    const result = validateBranchForm({
+      ...EMPTY_BRANCH_FORM,
+      name: "فرع تجريبي",
+      code: "BR20",
+      city: "القاهرة",
+    }, []);
+    expect(result.valid).toBe(true);
   });
   it("validates coordinates and geofence radius", () => {
     const result = validateBranchForm({ ...valid, latitude: "91", longitude: "-181", geofenceRadiusMeters: "5" }, BRANCH_FIXTURES);
@@ -66,6 +100,11 @@ describe("branch role scope", () => {
 });
 
 describe("branch styles and vocabulary", () => {
+  it("keeps branch selection in the top bar instead of detail actions", () => {
+    const details = readFileSync(join(process.cwd(), "features", "branches", "components", "BranchDetailsPage.tsx"), "utf8");
+    expect(details).not.toContain("استخدام هذا الفرع");
+    expect(details).not.toContain("المزيد");
+  });
   it("has one real branches stylesheet import", () => {
     const globals = readFileSync(join(process.cwd(), "app", "globals.css"), "utf8");
     expect(existsSync(join(process.cwd(), "styles", "branches.css"))).toBe(true);

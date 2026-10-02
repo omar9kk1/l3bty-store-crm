@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { CUSTOMER_FIXTURES } from "@/features/customers/fixtures";
 import { getProductSnapshot, resetProductStore } from "@/features/products/services/product-store";
-import { canManageSaleOverrides, canSendSaleWhatsApp, canViewSales } from "../permissions";
+import {
+  canManageSaleOverrides,
+  canOperatePointOfSale,
+  canSendSaleWhatsApp,
+  canViewSales,
+} from "../permissions";
 import { browserSalesWhatsAppService } from "../services/sales-whatsapp-service";
 import {
   addProductToCart,
@@ -39,8 +44,23 @@ describe("sales contracts", () => {
     expect(canViewSales(["rental_maintenance_employee"])).toBe(false);
     expect(canViewSales(["maintenance_technician"])).toBe(false);
     expect(canViewSales(["maintenance_technician", "sales_employee"])).toBe(true);
+    expect(canOperatePointOfSale(["sales_employee"])).toBe(true);
+    expect(canOperatePointOfSale(["owner"])).toBe(false);
+    expect(canOperatePointOfSale(["manager"])).toBe(false);
+    expect(canOperatePointOfSale(["manager", "sales_employee"])).toBe(false);
     expect(canManageSaleOverrides(["sales_employee"])).toBe(false);
     expect(canSendSaleWhatsApp(["sales_employee"])).toBe(true);
+  });
+
+  it("prevents owners and managers from executing a point-of-sale checkout", () => {
+    addProductToCart("product-car-12v", "main");
+    setSaleCustomer("customer-001");
+    const before = getSalesSnapshot().invoices.length;
+
+    expect(checkout({ roles: ["owner"] }).valid).toBe(false);
+    expect(checkout({ roles: ["manager"] }).valid).toBe(false);
+    expect(checkout({ roles: ["manager", "sales_employee"] }).valid).toBe(false);
+    expect(getSalesSnapshot().invoices).toHaveLength(before);
   });
 
   it("requires a customer, a nonempty cart, and an open financial shift", () => {

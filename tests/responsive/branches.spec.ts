@@ -49,7 +49,6 @@ test("owner and manager can open the branches administration module", async ({ p
   await expect(page.locator(".branches-page")).toBeVisible();
   await page.getByRole("button", { name: /معاينة الأدوار/ }).click();
   await page.getByLabel("المدير", { exact: true }).click();
-  await page.getByLabel("مالك النشاط").click();
   await expect(page.locator(".branches-grid [data-branch-card]")).toHaveCount(4);
   await page.goto("/branches/main");
   await expect(page.locator(".branch-details-page")).toBeVisible();
@@ -61,20 +60,18 @@ test("operational roles cannot see or render branch administration routes", asyn
     await page.goto("/branches");
     await page.getByRole("button", { name: /معاينة الأدوار/ }).click();
     await page.getByLabel(role, { exact: true }).click();
-    await page.getByLabel("مالك النشاط").click();
     await expect(page.getByText("لا تملك صلاحية لعرض هذا القسم")).toBeVisible();
     await expect(page.locator(".branches-page, .branch-details-page")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "الفروع والمواقع" })).toHaveCount(0);
   }
 });
 
-test("operational multi-role does not grant branch administration unless manager is selected", async ({ page }) => {
+test("switching operational roles does not grant branch administration unless manager is selected", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/branches/main");
   await page.getByRole("button", { name: /معاينة الأدوار/ }).click();
   await page.getByLabel("موظف المبيعات").click();
   await page.getByLabel("فني الصيانة").click();
-  await page.getByLabel("مالك النشاط").click();
   await expect(page.getByText("لا تملك صلاحية لعرض هذا القسم")).toBeVisible();
   await expect(page.locator(".branch-details-page")).toHaveCount(0);
   await page.getByLabel("المدير", { exact: true }).click();
@@ -84,15 +81,21 @@ test("operational multi-role does not grant branch administration unless manager
 test("branch form Drawer direction, validation and states work", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/branches");
-  await page.getByRole("button", { name: "إضافة فرع أو موقع" }).click();
+  await page.getByRole("button", { name: "إضافة فرع أو موقع" }).first().click();
   const desktopDrawer = page.getByRole("dialog", { name: "إضافة فرع أو موقع" });
   await expect(desktopDrawer).toBeVisible();
   expect((await desktopDrawer.boundingBox())?.x).toBeLessThan(3);
-  await page.getByLabel("كود الفرع *").fill("BR01");
-  await expect(page.getByText("الكود مستخدم بالفعل")).toBeVisible();
+  await expect(page.getByLabel("كود الفرع المُنشأ تلقائيًا")).toHaveText("BR01");
+  await expect(desktopDrawer.getByRole("textbox", { name: /كود الفرع/ })).toHaveCount(0);
+  await expect(desktopDrawer.getByLabel("الهاتف")).toHaveCount(0);
+  await expect(desktopDrawer.getByLabel("رقم بديل")).toHaveCount(0);
+  await expect(desktopDrawer.getByLabel("خط العرض")).toHaveCount(0);
+  await expect(desktopDrawer.getByLabel("وقت الفتح")).toHaveCount(0);
+  await expect(desktopDrawer.getByLabel("العنوان التفصيلي")).toHaveCount(0);
+  await expect(desktopDrawer.getByLabel("المنطقة")).toHaveCount(0);
   await page.getByRole("button", { name: "إغلاق" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "إضافة فرع أو موقع" }).click();
+  await page.getByRole("button", { name: "إضافة فرع أو موقع" }).first().click();
   const mobileDrawer = page.getByRole("dialog", { name: "إضافة فرع أو موقع" });
   await expect(mobileDrawer).toHaveCSS("inset-block-end", "0px");
   await page.goto("/branches?state=loading"); await expect(page.getByLabel("جار تحميل الفروع")).toBeVisible();

@@ -1,4 +1,26 @@
 import type { Branch, BranchQuery, BranchSummaryData } from "../types";
+import type { Employee } from "@/features/employees/types";
+
+export function applyEmployeeCounts(branches: readonly Branch[], employees: readonly Employee[]): Branch[] {
+  const employeeCounts = new Map<string, number>();
+  const technicianCounts = new Map<string, number>();
+
+  for (const employee of employees) {
+    const assignedBranchIds = new Set(employee.assignedBranchIds);
+    const isTechnician = employee.roleAssignments.some((assignment) => assignment.active && assignment.roleKey === "maintenance_technician");
+
+    for (const branchId of assignedBranchIds) {
+      employeeCounts.set(branchId, (employeeCounts.get(branchId) ?? 0) + 1);
+      if (isTechnician) technicianCounts.set(branchId, (technicianCounts.get(branchId) ?? 0) + 1);
+    }
+  }
+
+  return branches.map((branch) => ({
+    ...branch,
+    assignedEmployeeCount: employeeCounts.get(branch.id) ?? 0,
+    technicianCount: technicianCounts.get(branch.id) ?? 0,
+  }));
+}
 
 export function matchesBranchSearch(branch: Branch, value: string) {
   const query = value.trim().toLocaleLowerCase("ar");

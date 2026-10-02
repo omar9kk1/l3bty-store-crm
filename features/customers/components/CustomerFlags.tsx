@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/Badge";
 import type { CustomerFlag } from "../types";
 
 const flagLabels: Record<CustomerFlag, { label: string; tone: "warning" | "danger" | "info" }> = {
-  debt: { label: "مديونية", tone: "warning" },
   rental_ban: { label: "ممنوع من التأجير", tone: "danger" },
   needs_review: { label: "يحتاج مراجعة", tone: "info" },
 };

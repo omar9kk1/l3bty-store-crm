@@ -1,39 +1,780 @@
-import {getInventorySnapshot} from "@/features/inventory/services/inventory-service";
-import {applyProductStockMovement,getProductSnapshot} from "@/features/products/services/product-store";
-import {getRentalSnapshot,setRentalAssetTransferLocation} from "@/features/rentals/services/rental-store";
-import {getMaintenanceSnapshot,requestWorkshopTransfer,updateWorkshopTransfer} from "@/features/maintenance/services/maintenance-store";
-import type{RoleId}from"@/permissions/types";
-import {getSettingsSnapshot} from "@/features/settings/services/settings-store";
-import {TRANSFER_FIXTURES}from"../fixtures";import{creatableTransferTypes,isRentalBranchOperator,isSalesBranchRequester,isTechnicianTransferDirectionValid,isTransferAdmin}from"../permissions";import{validateTransfer}from"../schemas/transfer-schema";import type{CreateTransferInput,InventoryTransfer,TransferDifference,TransferEvent,TransferItem,TransferStatus}from"../types";
-const now="2026-08-06T18:15:00+03:00";let transfers:readonly InventoryTransfer[]=TRANSFER_FIXTURES.map(clone);let sequence=100;let snapshot={transfers};const listeners=new Set<()=>void>();
-function clone(item:InventoryTransfer):InventoryTransfer{return{...item,items:item.items.map((value)=>({...value})),differences:item.differences.map((value)=>({...value})),events:item.events.map((value)=>({...value}))}}
-function emit(){snapshot={transfers};listeners.forEach((listener)=>listener())}function event(transfer:InventoryTransfer,type:string,by:string,next:TransferStatus,reason:string):TransferEvent{return{id:`transfer-event-${sequence++}`,type,at:now,by,previousStatus:transfer.status,newStatus:next,reason}}
-function replace(id:string,update:(value:InventoryTransfer)=>InventoryTransfer){transfers=transfers.map((item)=>item.id===id?update(item):item);emit()}
-export function subscribeTransfers(listener:()=>void){listeners.add(listener);return()=>listeners.delete(listener)}export function getTransfersSnapshot(){return snapshot}
-export const transferApprovalQuantityLimit=10;
-export function createTransfer(input:CreateTransferInput,roles:readonly RoleId[],activeBranchId?:string){
-  const salesBranchRequester=isSalesBranchRequester(roles);
-  const rentalBranchOperator=isRentalBranchOperator(roles);
-  if(salesBranchRequester&&(!activeBranchId||input.transferType!=="branch_stock"||input.destinationLocationId!==activeBranchId))return{valid:false,message:"موظف المبيعات يطلب تزويد ألعاب البيع لفرعه الحالي فقط."};
-  if(salesBranchRequester&&input.items.some((item)=>item.itemType!=="stock_product"||!item.productId||getProductSnapshot().products.find((product)=>product.id===item.productId)?.type!=="sale_toy"))return{valid:false,message:"طلب تزويد موظف المبيعات يقبل ألعاب البيع فقط."};
-  if(rentalBranchOperator){
-    if(!activeBranchId)return{valid:false,message:"يجب تحديد الفرع الحالي لموظف التأجير والصيانة."};
-    if(input.transferType==="rental_asset"){
-      const invalidAsset=input.destinationLocationId!==activeBranchId||input.sourceLocationId===activeBranchId||input.items.some((item)=>item.itemType!=="rental_asset"||!item.rentalAssetId||!getRentalSnapshot().assets.some((asset)=>asset.id===item.rentalAssetId&&asset.branchId===input.sourceLocationId&&asset.status==="available"));
-      if(invalidAsset)return{valid:false,message:"موظف التأجير يطلب لعبة تأجير من فرع آخر إلى فرعه الحالي فقط."};
-    }else if(input.transferType==="maintenance_to_workshop"){
-      const order=getMaintenanceSnapshot().orders.find((item)=>item.id===input.relatedMaintenanceOrderId);
-      if(input.sourceLocationId!==activeBranchId||input.destinationLocationId!=="workshop"||!order||order.branchId!==activeBranchId)return{valid:false,message:"تسليم الصيانة يجب أن يكون من الفرع الحالي إلى الورشة ومرتبطًا بأمر صيانة للفرع."};
-    }else return{valid:false,message:"هذا النوع غير متاح لموظف التأجير والصيانة."};
+import { getInventorySnapshot } from "@/features/inventory/services/inventory-service";
+import {
+  applyProductStockMovement,
+  getProductSnapshot,
+} from "@/features/products/services/product-store";
+import {
+  getRentalSnapshot,
+  setRentalAssetTransferLocation,
+} from "@/features/rentals/services/rental-store";
+import {
+  getMaintenanceSnapshot,
+  requestWorkshopTransfer,
+  updateWorkshopTransfer,
+} from "@/features/maintenance/services/maintenance-store";
+import type { RoleId } from "@/permissions/types";
+import { getSettingsSnapshot } from "@/features/settings/services/settings-store";
+import {
+  completeBranchNeedFromTransfer,
+  linkBranchNeedToTransfer,
+  unlinkBranchNeedTransfer,
+} from "@/features/branch-needs/services/branch-needs-store";
+import { TRANSFER_FIXTURES } from "../fixtures";
+import {
+  creatableTransferTypes,
+  isRentalBranchOperator,
+  isSalesBranchRequester,
+  isTechnicianTransferDirectionValid,
+  isTransferAdmin,
+} from "../permissions";
+import { validateTransfer } from "../schemas/transfer-schema";
+import type {
+  CreateTransferInput,
+  InventoryTransfer,
+  TransferDifference,
+  TransferEvent,
+  TransferItem,
+  TransferStatus,
+} from "../types";
+import {
+  readLocalTestData,
+  removeLocalTestData,
+  writeLocalTestData,
+} from "@/lib/local-test-data";
+const now = "2026-08-06T18:15:00+03:00",
+  STORAGE_KEY = "l3bty-local-transfers-v1";
+const stored = readLocalTestData<{
+  transfers: InventoryTransfer[];
+  sequence: number;
+}>(STORAGE_KEY, 1, { transfers: [], sequence: 100 });
+let transfers: readonly InventoryTransfer[] = stored.transfers.map(clone);
+let sequence = stored.sequence;
+let snapshot = { transfers };
+const listeners = new Set<() => void>();
+function clone(item: InventoryTransfer): InventoryTransfer {
+  return {
+    ...item,
+    items: item.items.map((value) => ({ ...value })),
+    differences: item.differences.map((value) => ({ ...value })),
+    events: item.events.map((value) => ({ ...value })),
+  };
+}
+function emit(persist = true) {
+  snapshot = { transfers };
+  if (persist) writeLocalTestData(STORAGE_KEY, 1, { transfers, sequence });
+  listeners.forEach((listener) => listener());
+}
+function event(
+  transfer: InventoryTransfer,
+  type: string,
+  by: string,
+  next: TransferStatus,
+  reason: string,
+): TransferEvent {
+  return {
+    id: `transfer-event-${sequence++}`,
+    type,
+    at: now,
+    by,
+    previousStatus: transfer.status,
+    newStatus: next,
+    reason,
+  };
+}
+function replace(
+  id: string,
+  update: (value: InventoryTransfer) => InventoryTransfer,
+) {
+  transfers = transfers.map((item) => (item.id === id ? update(item) : item));
+  emit();
+}
+export function subscribeTransfers(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+export function getTransfersSnapshot() {
+  return snapshot;
+}
+export const transferApprovalQuantityLimit = 10;
+export function createTransfer(
+  input: CreateTransferInput,
+  roles: readonly RoleId[],
+  activeBranchId?: string,
+) {
+  const salesBranchRequester = isSalesBranchRequester(roles);
+  const rentalBranchOperator = isRentalBranchOperator(roles);
+  if (
+    salesBranchRequester &&
+    (!activeBranchId ||
+      input.transferType !== "branch_stock" ||
+      input.destinationLocationId !== activeBranchId)
+  )
+    return {
+      valid: false,
+      message: "موظف المبيعات يطلب تزويد ألعاب البيع لفرعه الحالي فقط.",
+    };
+  if (
+    salesBranchRequester &&
+    input.items.some(
+      (item) =>
+        item.itemType !== "stock_product" ||
+        !item.productId ||
+        getProductSnapshot().products.find(
+          (product) => product.id === item.productId,
+        )?.type !== "sale_toy",
+    )
+  )
+    return {
+      valid: false,
+      message: "طلب تزويد موظف المبيعات يقبل ألعاب البيع فقط.",
+    };
+  if (rentalBranchOperator) {
+    if (!activeBranchId)
+      return {
+        valid: false,
+        message: "يجب تحديد الفرع الحالي لموظف التأجير والصيانة.",
+      };
+    if (input.transferType === "rental_asset") {
+      const invalidAsset =
+        input.destinationLocationId !== activeBranchId ||
+        input.sourceLocationId === activeBranchId ||
+        input.items.some(
+          (item) =>
+            item.itemType !== "rental_asset" ||
+            !item.rentalAssetId ||
+            !getRentalSnapshot().assets.some(
+              (asset) =>
+                asset.id === item.rentalAssetId &&
+                asset.branchId === input.sourceLocationId &&
+                asset.status === "available",
+            ),
+        );
+      if (invalidAsset)
+        return {
+          valid: false,
+          message:
+            "موظف التأجير يطلب لعبة تأجير من فرع آخر إلى فرعه الحالي فقط.",
+        };
+    } else if (input.transferType === "maintenance_to_workshop") {
+      const order = getMaintenanceSnapshot().orders.find(
+        (item) => item.id === input.relatedMaintenanceOrderId,
+      );
+      if (
+        input.sourceLocationId !== activeBranchId ||
+        input.destinationLocationId !== "workshop" ||
+        !order ||
+        order.branchId !== activeBranchId
+      )
+        return {
+          valid: false,
+          message:
+            "تسليم الصيانة يجب أن يكون من الفرع الحالي إلى الورشة ومرتبطًا بأمر صيانة للفرع.",
+        };
+    } else
+      return {
+        valid: false,
+        message: "هذا النوع غير متاح لموظف التأجير والصيانة.",
+      };
   }
-  const duplicate=transfers.find((item)=>item.idempotencyKey===input.idempotencyKey);if(duplicate)return{valid:true,message:"تم استخدام طلب التحويل المنشأ سابقًا.",transfer:duplicate,duplicate:true};if(!creatableTransferTypes(roles).includes(input.transferType))return{valid:false,message:"نوع التحويل غير متاح لهذا الدور."};const technicianOnly=roles.includes("maintenance_technician")&&!isTransferAdmin(roles)&&!roles.includes("rental_maintenance_employee");if(technicianOnly&&!isTechnicianTransferDirectionValid(input.transferType,input.sourceLocationId,input.destinationLocationId))return{valid:false,message:"اتجاه التحويل غير مسموح لفني الورشة."};if(["maintenance_to_workshop","maintenance_return"].includes(input.transferType)&&!input.relatedMaintenanceOrderId)return{valid:false,message:"يجب ربط حركة اللعبة بأمر صيانة."};const validation=validateTransfer(input);if(!validation.valid)return{valid:false,message:Object.values(validation.errors)[0],errors:validation.errors};const inventory=getInventorySnapshot();for(const item of input.items){if(item.itemType==="stock_product"){const balance=inventory.balances.find((value)=>value.productId===item.productId&&value.branchId===input.sourceLocationId);if(!balance||balance.quantityAvailable<item.quantityRequested)return{valid:false,message:"الكمية المطلوبة أكبر من الرصيد المتاح."}}if(item.itemType==="rental_asset"){const asset=getRentalSnapshot().assets.find((value)=>value.id===item.rentalAssetId);if(!asset||["rented","near_end","additional_time","selecting","in_transit"].includes(asset.status))return{valid:false,message:"لا يمكن تحويل أصل مؤجر أو مستخدم أو موجود في تحويل نشط."};if(transfers.some((value)=>!["completed","rejected","cancelled"].includes(value.status)&&value.items.some((line)=>line.rentalAssetId===asset.id)))return{valid:false,message:"الأصل موجود في تحويل نشط آخر."}}}
-  const id=`transfer-${sequence++}`;const requiresApproval=!isTransferAdmin(roles)||input.destinationLocationId==="workshop"||input.items.some((item)=>item.itemType!=="stock_product"||item.quantityRequested>getSettingsSnapshot().settings.transferApprovalQuantityLimit);const status:TransferStatus=requiresApproval?"pending_approval":"approved";const items:TransferItem[]=input.items.map((item,index)=>({...item,id:`transfer-item-${sequence++}-${index}`,quantityApproved:requiresApproval?0:item.quantityRequested,quantityDispatched:0,quantityReceived:0,conditionAtReceipt:""}));const transfer:InventoryTransfer={id,transferNumber:`TRF-2026-${String(sequence).padStart(6,"0")}`,transferType:input.transferType,sourceLocationId:input.sourceLocationId,destinationLocationId:input.destinationLocationId,requestedByEmployeeId:input.requestedByEmployeeId,approvedByEmployeeId:requiresApproval?null:input.requestedByEmployeeId,dispatchedByEmployeeId:null,receivedByEmployeeId:null,status,reason:input.reason,notes:input.notes,requestedAt:now,approvedAt:requiresApproval?null:now,dispatchedAt:null,receivedAt:null,cancelledAt:null,cancellationReason:"",items,differences:[],relatedMaintenanceOrderId:input.relatedMaintenanceOrderId||null,relatedRentalAssetId:items.find((item)=>item.rentalAssetId)?.rentalAssetId??null,idempotencyKey:input.idempotencyKey,events:[],createdAt:now,updatedAt:now};if(input.transferType==="maintenance_to_workshop"&&input.relatedMaintenanceOrderId){const maintenance=requestWorkshopTransfer(input.relatedMaintenanceOrderId,input.requestedByEmployeeId,input.reason,items[0]?.conditionAtDispatch??"");if(!maintenance.valid)return{valid:false,message:maintenance.message,transfer:undefined,duplicate:false};}transfers=[transfer,...transfers];emit();return{valid:true,message:requiresApproval?"تم إنشاء الطلب وإرساله للاعتماد.":"تم إنشاء التحويل مع اعتماد إداري Mock.",transfer,duplicate:false}}
-export function approveTransfer(id:string,roles:readonly RoleId[],actor:string,reason:string,approved=true){const transfer=transfers.find((item)=>item.id===id);if(!transfer)return{valid:false,message:"التحويل غير موجود."};if(!isTransferAdmin(roles))return{valid:false,message:"اعتماد التحويل متاح للمالك والمدير فقط."};if(!reason.trim())return{valid:false,message:"سبب قرار الاعتماد إلزامي."};const status:TransferStatus=approved?"approved":"rejected";replace(id,(item)=>({...item,status,approvedByEmployeeId:approved?actor:null,approvedAt:approved?now:null,items:item.items.map((line)=>({...line,quantityApproved:approved?line.quantityRequested:0})),events:[event(item,approved?"approved":"rejected",actor,status,reason),...item.events],updatedAt:now}));return{valid:true,message:approved?"تم اعتماد التحويل.":"تم رفض التحويل."}}
-export function dispatchTransfer(id:string,actor:string,roles?:readonly RoleId[],activeBranchId?:string){const transfer=transfers.find((item)=>item.id===id);if(roles&&isRentalBranchOperator(roles)&&(!activeBranchId||!transfer||transfer.sourceLocationId!==activeBranchId||!["rental_asset","maintenance_to_workshop"].includes(transfer.transferType)))return{valid:false,message:"موظف التأجير يؤكد التسليم من فرعه فقط، ولا يتعامل مع قطع الغيار."};if(roles&&isSalesBranchRequester(roles))return{valid:false,message:"موظف المبيعات لا يرسل المخزون؛ الإرسال مسؤولية الإدارة أو مسؤول المخزون."};if(!transfer||!["approved","preparing"].includes(transfer.status))return{valid:false,message:"التحويل غير جاهز للإرسال."};const inventory=getInventorySnapshot();for(const item of transfer.items){if(item.itemType==="stock_product"){const balance=inventory.balances.find((value)=>value.productId===item.productId&&value.branchId===transfer.sourceLocationId);if(!balance||balance.quantityAvailable<item.quantityApproved)return{valid:false,message:"تغير الرصيد ولم تعد الكمية المعتمدة متاحة."}}if(item.itemType==="rental_asset"){const asset=getRentalSnapshot().assets.find((value)=>value.id===item.rentalAssetId);if(!asset||["rented","near_end","additional_time","selecting","in_transit"].includes(asset.status))return{valid:false,message:"الأصل غير متاح للإرسال."}}}
-  for(const item of transfer.items){if(item.itemType==="stock_product"&&item.productId)applyProductStockMovement({productId:item.productId,branchId:transfer.sourceLocationId,quantity:-item.quantityApproved,type:"transfer_dispatch",reference:transfer.transferNumber,reason:"إرسال تحويل مخزون",performedByEmployeeId:actor,idempotencyKey:`dispatch-${transfer.id}-${item.id}`});if(item.itemType==="rental_asset"&&item.rentalAssetId)setRentalAssetTransferLocation(item.rentalAssetId,"dispatch",transfer.destinationLocationId,`إرسال ${transfer.transferNumber}`)}if(transfer.relatedMaintenanceOrderId)updateWorkshopTransfer(transfer.relatedMaintenanceOrderId,transfer.transferType==="maintenance_return"?"dispatch_return":"dispatch",actor);
-  replace(id,(item)=>({...item,status:"in_transit",dispatchedByEmployeeId:actor,dispatchedAt:now,items:item.items.map((line)=>({...line,quantityDispatched:line.quantityApproved,conditionAtDispatch:line.conditionAtDispatch||"سليم"})),events:[event(item,"dispatched",actor,"in_transit","تأكيد التسليم للشحن"),...item.events],updatedAt:now}));return{valid:true,message:"تم الإرسال؛ لم يضف أي رصيد للوجهة بعد."}}
-export function receiveTransfer(id:string,received:Record<string,number>,conditions:Record<string,string>,actor:string,differenceReason:string,roles?:readonly RoleId[],activeBranchId?:string){const transfer=transfers.find((item)=>item.id===id);if(roles&&isRentalBranchOperator(roles)&&(!activeBranchId||!transfer||transfer.destinationLocationId!==activeBranchId||!["rental_asset","maintenance_return"].includes(transfer.transferType)))return{valid:false,message:"موظف التأجير يؤكد استلام لعبة التأجير أو اللعبة العائدة من الصيانة إلى فرعه فقط."};if(roles&&isSalesBranchRequester(roles)&&(transfer?.transferType!=="branch_stock"||!activeBranchId||transfer.destinationLocationId!==activeBranchId))return{valid:false,message:"موظف المبيعات يؤكد استلام ألعاب البيع الواردة إلى فرعه الحالي فقط."};if(roles&&isSalesBranchRequester(roles)&&transfer?.items.some((item)=>item.itemType!=="stock_product"||!item.productId||getProductSnapshot().products.find((product)=>product.id===item.productId)?.type!=="sale_toy"))return{valid:false,message:"موظف المبيعات يؤكد استلام ألعاب البيع فقط."};if(!transfer||!["in_transit","dispatched","partially_received"].includes(transfer.status))return{valid:false,message:"التحويل غير متاح للاستلام."};const differences:TransferDifference[]=[];for(const item of transfer.items){const quantity=received[item.id]??0;if(quantity<0)return{valid:false,message:"كمية الاستلام غير صحيحة."};if(quantity!==item.quantityDispatched&&!differenceReason.trim())return{valid:false,message:"سبب فرق الاستلام إلزامي."};if(item.itemType==="stock_product"&&item.productId&&quantity>0){const result=applyProductStockMovement({productId:item.productId,branchId:transfer.destinationLocationId,quantity,type:"transfer_receive",reference:transfer.transferNumber,reason:"استلام تحويل مخزون",performedByEmployeeId:actor,idempotencyKey:`receive-${transfer.id}-${item.id}`,unitCost:Number(getInventorySnapshot().balances.find((value)=>value.productId===item.productId&&value.branchId===transfer.sourceLocationId)?.averageCost??0)});if(!result.valid)return result}if(item.itemType==="rental_asset"&&item.rentalAssetId&&quantity>0)setRentalAssetTransferLocation(item.rentalAssetId,"receive",transfer.destinationLocationId,`استلام ${transfer.transferNumber}`);if(quantity!==item.quantityDispatched)differences.push({id:`difference-${sequence++}`,transferItemId:item.id,kind:quantity<item.quantityDispatched?"shortage":"surplus",quantity:Math.abs(item.quantityDispatched-quantity),reason:differenceReason,decision:"",reviewedByEmployeeId:null,reviewedAt:null})}
-  if(transfer.relatedMaintenanceOrderId)updateWorkshopTransfer(transfer.relatedMaintenanceOrderId,transfer.transferType==="maintenance_return"?"return_branch":transfer.destinationLocationId==="workshop"?"receive":"return_branch",actor);const status:TransferStatus=differences.length?"difference_review":"completed";replace(id,(item)=>({...item,status,receivedByEmployeeId:actor,receivedAt:now,items:item.items.map((line)=>({...line,quantityReceived:received[line.id]??0,conditionAtReceipt:conditions[line.id]??"سليم"})),differences,events:[event(item,"received",actor,status,differences.length?differenceReason:"استلام كامل"),...item.events],updatedAt:now}));return{valid:true,message:differences.length?"تم تسجيل الاستلام والفروقات وتنتظر مراجعة الإدارة.":"تم الاستلام الكامل وإكمال التحويل."}}
-export function resolveTransferDifferences(id:string,roles:readonly RoleId[],actor:string,decision:"accept_loss"|"return_to_source",reason:string){const transfer=transfers.find((item)=>item.id===id);if(!transfer||transfer.status!=="difference_review")return{valid:false,message:"لا توجد فروقات قيد المراجعة."};if(!isTransferAdmin(roles))return{valid:false,message:"مراجعة الفروقات متاحة للإدارة فقط."};if(!reason.trim())return{valid:false,message:"سبب قرار الفرق إلزامي."};if(decision==="return_to_source")for(const difference of transfer.differences){const item=transfer.items.find((line)=>line.id===difference.transferItemId);if(item?.productId&&difference.kind==="shortage")applyProductStockMovement({productId:item.productId,branchId:transfer.sourceLocationId,quantity:difference.quantity,type:"adjustment_in",reference:transfer.transferNumber,reason,performedByEmployeeId:actor,idempotencyKey:`difference-${transfer.id}-${difference.id}`})}replace(id,(item)=>({...item,status:"completed",differences:item.differences.map((value)=>({...value,decision,reviewedByEmployeeId:actor,reviewedAt:now})),events:[event(item,"difference_reviewed",actor,"completed",reason),...item.events],updatedAt:now}));return{valid:true,message:"تم اعتماد قرار الفروقات وإكمال التحويل."}}
-export function cancelTransfer(id:string,roles:readonly RoleId[],actor:string,reason:string){const transfer=transfers.find((item)=>item.id===id);if(transfer&&!isTransferAdmin(roles)&&transfer.requestedByEmployeeId!==actor)return{valid:false,message:"لا يمكنك إلغاء طلب أنشأه موظف آخر."};if(transfer&&(isSalesBranchRequester(roles)||isRentalBranchOperator(roles))&&!["requested","pending_approval"].includes(transfer.status))return{valid:false,message:"بعد الاعتماد يتولى المدير أو مسؤول المخزون إلغاء الطلب."};if(!transfer||["completed","cancelled","rejected"].includes(transfer.status))return{valid:false,message:"لا يمكن إلغاء هذا التحويل."};if(!reason.trim())return{valid:false,message:"سبب الإلغاء إلزامي."};if(transfer.status==="in_transit"&&!isTransferAdmin(roles))return{valid:false,message:"إلغاء تحويل مرسل يحتاج الإدارة."};if(transfer.status==="in_transit")for(const item of transfer.items){if(item.productId)applyProductStockMovement({productId:item.productId,branchId:transfer.sourceLocationId,quantity:item.quantityDispatched,type:"transfer_receive",reference:transfer.transferNumber,reason:`عكس إرسال: ${reason}`,performedByEmployeeId:actor,idempotencyKey:`cancel-${transfer.id}-${item.id}`});if(item.rentalAssetId)setRentalAssetTransferLocation(item.rentalAssetId,"receive",transfer.sourceLocationId,`إلغاء ${transfer.transferNumber}`)}replace(id,(item)=>({...item,status:"cancelled",cancelledAt:now,cancellationReason:reason,events:[event(item,"cancelled",actor,"cancelled",reason),...item.events],updatedAt:now}));return{valid:true,message:"تم إلغاء التحويل مع الحفاظ على السجل."}}
-export function resetTransferStore(){transfers=TRANSFER_FIXTURES.map(clone);sequence=100;emit()}
+  const duplicate = transfers.find(
+    (item) => item.idempotencyKey === input.idempotencyKey,
+  );
+  if (duplicate)
+    return {
+      valid: true,
+      message: "تم استخدام طلب التحويل المنشأ سابقًا.",
+      transfer: duplicate,
+      duplicate: true,
+    };
+  if (!creatableTransferTypes(roles).includes(input.transferType))
+    return { valid: false, message: "نوع التحويل غير متاح لهذا الدور." };
+  const technicianOnly =
+    roles.includes("maintenance_technician") &&
+    !isTransferAdmin(roles) &&
+    !roles.includes("rental_maintenance_employee");
+  const technicianOrder = technicianOnly
+    ? getMaintenanceSnapshot().orders.find(
+        (item) => item.id === input.relatedMaintenanceOrderId,
+      )
+    : undefined;
+  if (
+    technicianOnly &&
+    (input.transferType !== "maintenance_to_workshop" ||
+      !technicianOrder ||
+      technicianOrder.assignedTechnicianId !== input.requestedByEmployeeId ||
+      technicianOrder.branchId !== input.sourceLocationId)
+  )
+    return {
+      valid: false,
+      message: "يمكن للفني تحويل أمر الصيانة المسند إليه إلى الورشة فقط.",
+    };
+  if (
+    technicianOnly &&
+    !isTechnicianTransferDirectionValid(
+      input.transferType,
+      input.sourceLocationId,
+      input.destinationLocationId,
+    )
+  )
+    return { valid: false, message: "اتجاه التحويل غير مسموح لفني الورشة." };
+  if (
+    ["maintenance_to_workshop", "maintenance_return"].includes(
+      input.transferType,
+    ) &&
+    !input.relatedMaintenanceOrderId
+  )
+    return { valid: false, message: "يجب ربط حركة اللعبة بأمر صيانة." };
+  const validation = validateTransfer(input);
+  if (!validation.valid)
+    return {
+      valid: false,
+      message: Object.values(validation.errors)[0],
+      errors: validation.errors,
+    };
+  const inventory = getInventorySnapshot();
+  for (const item of input.items) {
+    if (item.itemType === "stock_product") {
+      const balance = inventory.balances.find(
+        (value) =>
+          value.productId === item.productId &&
+          value.branchId === input.sourceLocationId,
+      );
+      if (!balance || balance.quantityAvailable < item.quantityRequested)
+        return {
+          valid: false,
+          message: "الكمية المطلوبة أكبر من الرصيد المتاح.",
+        };
+    }
+    if (item.itemType === "rental_asset") {
+      const asset = getRentalSnapshot().assets.find(
+        (value) => value.id === item.rentalAssetId,
+      );
+      if (
+        !asset ||
+        [
+          "rented",
+          "near_end",
+          "additional_time",
+          "selecting",
+          "in_transit",
+        ].includes(asset.status)
+      )
+        return {
+          valid: false,
+          message: "لا يمكن تحويل أصل مؤجر أو مستخدم أو موجود في تحويل نشط.",
+        };
+      if (
+        transfers.some(
+          (value) =>
+            !["completed", "rejected", "cancelled"].includes(value.status) &&
+            value.items.some((line) => line.rentalAssetId === asset.id),
+        )
+      )
+        return { valid: false, message: "الأصل موجود في تحويل نشط آخر." };
+    }
+  }
+  const id = `transfer-${sequence++}`;
+  const requiresApproval =
+    !isTransferAdmin(roles) ||
+    input.destinationLocationId === "workshop" ||
+    input.items.some(
+      (item) =>
+        item.itemType !== "stock_product" ||
+        item.quantityRequested >
+          getSettingsSnapshot().settings.transferApprovalQuantityLimit,
+    );
+  const status: TransferStatus = requiresApproval
+    ? "pending_approval"
+    : "approved";
+  const items: TransferItem[] = input.items.map((item, index) => ({
+    ...item,
+    id: `transfer-item-${sequence++}-${index}`,
+    quantityApproved: requiresApproval ? 0 : item.quantityRequested,
+    quantityDispatched: 0,
+    quantityReceived: 0,
+    conditionAtReceipt: "",
+  }));
+  const transfer: InventoryTransfer = {
+    id,
+    transferNumber: `TRF-2026-${String(sequence).padStart(6, "0")}`,
+    transferType: input.transferType,
+    sourceLocationId: input.sourceLocationId,
+    destinationLocationId: input.destinationLocationId,
+    requestedByEmployeeId: input.requestedByEmployeeId,
+    approvedByEmployeeId: requiresApproval ? null : input.requestedByEmployeeId,
+    dispatchedByEmployeeId: null,
+    receivedByEmployeeId: null,
+    status,
+    reason: input.reason,
+    notes: input.notes,
+    requestedAt: now,
+    approvedAt: requiresApproval ? null : now,
+    dispatchedAt: null,
+    receivedAt: null,
+    cancelledAt: null,
+    cancellationReason: "",
+    items,
+    differences: [],
+    relatedMaintenanceOrderId: input.relatedMaintenanceOrderId || null,
+    relatedRentalAssetId:
+      items.find((item) => item.rentalAssetId)?.rentalAssetId ?? null,
+    relatedBranchNeedId: input.relatedBranchNeedId ?? null,
+    idempotencyKey: input.idempotencyKey,
+    events: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  if (
+    input.transferType === "maintenance_to_workshop" &&
+    input.relatedMaintenanceOrderId
+  ) {
+    const maintenance = requestWorkshopTransfer(
+      input.relatedMaintenanceOrderId,
+      input.requestedByEmployeeId,
+      input.reason,
+      items[0]?.conditionAtDispatch ?? "",
+    );
+    if (!maintenance.valid)
+      return {
+        valid: false,
+        message: maintenance.message,
+        transfer: undefined,
+        duplicate: false,
+      };
+  }
+  if (input.relatedBranchNeedId) {
+    const linked = linkBranchNeedToTransfer(
+      input.relatedBranchNeedId,
+      transfer.id,
+    );
+    if (!linked.valid)
+      return {
+        valid: false,
+        message: linked.message,
+        transfer: undefined,
+        duplicate: false,
+      };
+  }
+  transfers = [transfer, ...transfers];
+  emit();
+  return {
+    valid: true,
+    message: requiresApproval
+      ? "تم إنشاء الطلب وإرساله للاعتماد."
+      : "تم إنشاء التحويل مع اعتماد إداري.",
+    transfer,
+    duplicate: false,
+  };
+}
+export function approveTransfer(
+  id: string,
+  roles: readonly RoleId[],
+  actor: string,
+  reason: string,
+  approved = true,
+) {
+  const transfer = transfers.find((item) => item.id === id);
+  if (!transfer) return { valid: false, message: "التحويل غير موجود." };
+  if (!isTransferAdmin(roles))
+    return { valid: false, message: "اعتماد التحويل متاح للمدير فقط." };
+  if (!reason.trim())
+    return { valid: false, message: "سبب قرار الاعتماد إلزامي." };
+  const status: TransferStatus = approved ? "approved" : "rejected";
+  replace(id, (item) => ({
+    ...item,
+    status,
+    approvedByEmployeeId: approved ? actor : null,
+    approvedAt: approved ? now : null,
+    items: item.items.map((line) => ({
+      ...line,
+      quantityApproved: approved ? line.quantityRequested : 0,
+    })),
+    events: [
+      event(item, approved ? "approved" : "rejected", actor, status, reason),
+      ...item.events,
+    ],
+    updatedAt: now,
+  }));
+  return {
+    valid: true,
+    message: approved ? "تم اعتماد التحويل." : "تم رفض التحويل.",
+  };
+}
+export function dispatchTransfer(
+  id: string,
+  actor: string,
+  roles?: readonly RoleId[],
+  activeBranchId?: string,
+) {
+  const transfer = transfers.find((item) => item.id === id);
+  if (
+    roles &&
+    isRentalBranchOperator(roles) &&
+    (!activeBranchId ||
+      !transfer ||
+      transfer.sourceLocationId !== activeBranchId ||
+      !["rental_asset", "maintenance_to_workshop"].includes(
+        transfer.transferType,
+      ))
+  )
+    return {
+      valid: false,
+      message:
+        "موظف التأجير يؤكد التسليم من فرعه فقط، ولا يتعامل مع قطع الغيار.",
+    };
+  if (roles && isSalesBranchRequester(roles))
+    return {
+      valid: false,
+      message:
+        "موظف المبيعات لا يرسل المخزون؛ الإرسال مسؤولية الإدارة أو مسؤول المخزون.",
+    };
+  if (!transfer || !["approved", "preparing"].includes(transfer.status))
+    return { valid: false, message: "التحويل غير جاهز للإرسال." };
+  const inventory = getInventorySnapshot();
+  for (const item of transfer.items) {
+    if (item.itemType === "stock_product") {
+      const balance = inventory.balances.find(
+        (value) =>
+          value.productId === item.productId &&
+          value.branchId === transfer.sourceLocationId,
+      );
+      if (!balance || balance.quantityAvailable < item.quantityApproved)
+        return {
+          valid: false,
+          message: "تغير الرصيد ولم تعد الكمية المعتمدة متاحة.",
+        };
+    }
+    if (item.itemType === "rental_asset") {
+      const asset = getRentalSnapshot().assets.find(
+        (value) => value.id === item.rentalAssetId,
+      );
+      if (
+        !asset ||
+        [
+          "rented",
+          "near_end",
+          "additional_time",
+          "selecting",
+          "in_transit",
+        ].includes(asset.status)
+      )
+        return { valid: false, message: "الأصل غير متاح للإرسال." };
+    }
+  }
+  for (const item of transfer.items) {
+    if (item.itemType === "stock_product" && item.productId)
+      applyProductStockMovement({
+        productId: item.productId,
+        branchId: transfer.sourceLocationId,
+        quantity: -item.quantityApproved,
+        type: "transfer_dispatch",
+        reference: transfer.transferNumber,
+        reason: "إرسال تحويل مخزون",
+        performedByEmployeeId: actor,
+        idempotencyKey: `dispatch-${transfer.id}-${item.id}`,
+      });
+    if (item.itemType === "rental_asset" && item.rentalAssetId)
+      setRentalAssetTransferLocation(
+        item.rentalAssetId,
+        "dispatch",
+        transfer.destinationLocationId,
+        `إرسال ${transfer.transferNumber}`,
+      );
+  }
+  if (transfer.relatedMaintenanceOrderId)
+    updateWorkshopTransfer(
+      transfer.relatedMaintenanceOrderId,
+      transfer.transferType === "maintenance_return"
+        ? "dispatch_return"
+        : "dispatch",
+      actor,
+    );
+  replace(id, (item) => ({
+    ...item,
+    status: "in_transit",
+    dispatchedByEmployeeId: actor,
+    dispatchedAt: now,
+    items: item.items.map((line) => ({
+      ...line,
+      quantityDispatched: line.quantityApproved,
+      conditionAtDispatch: line.conditionAtDispatch || "سليم",
+    })),
+    events: [
+      event(item, "dispatched", actor, "in_transit", "تأكيد التسليم للشحن"),
+      ...item.events,
+    ],
+    updatedAt: now,
+  }));
+  return { valid: true, message: "تم الإرسال؛ لم يضف أي رصيد للوجهة بعد." };
+}
+export function receiveTransfer(
+  id: string,
+  received: Record<string, number>,
+  conditions: Record<string, string>,
+  actor: string,
+  differenceReason: string,
+  roles?: readonly RoleId[],
+  activeBranchId?: string,
+) {
+  const transfer = transfers.find((item) => item.id === id);
+  if (
+    roles &&
+    isRentalBranchOperator(roles) &&
+    (!activeBranchId ||
+      !transfer ||
+      transfer.destinationLocationId !== activeBranchId ||
+      !["rental_asset", "maintenance_return"].includes(transfer.transferType))
+  )
+    return {
+      valid: false,
+      message:
+        "موظف التأجير يؤكد استلام لعبة التأجير أو اللعبة العائدة من الصيانة إلى فرعه فقط.",
+    };
+  if (
+    roles &&
+    isSalesBranchRequester(roles) &&
+    (transfer?.transferType !== "branch_stock" ||
+      !activeBranchId ||
+      transfer.destinationLocationId !== activeBranchId)
+  )
+    return {
+      valid: false,
+      message:
+        "موظف المبيعات يؤكد استلام ألعاب البيع الواردة إلى فرعه الحالي فقط.",
+    };
+  if (
+    roles &&
+    isSalesBranchRequester(roles) &&
+    transfer?.items.some(
+      (item) =>
+        item.itemType !== "stock_product" ||
+        !item.productId ||
+        getProductSnapshot().products.find(
+          (product) => product.id === item.productId,
+        )?.type !== "sale_toy",
+    )
+  )
+    return {
+      valid: false,
+      message: "موظف المبيعات يؤكد استلام ألعاب البيع فقط.",
+    };
+  if (
+    !transfer ||
+    !["in_transit", "dispatched", "partially_received"].includes(
+      transfer.status,
+    )
+  )
+    return { valid: false, message: "التحويل غير متاح للاستلام." };
+  const differences: TransferDifference[] = [];
+  for (const item of transfer.items) {
+    const quantity = received[item.id] ?? 0;
+    if (quantity < 0)
+      return { valid: false, message: "كمية الاستلام غير صحيحة." };
+    if (quantity !== item.quantityDispatched && !differenceReason.trim())
+      return { valid: false, message: "سبب فرق الاستلام إلزامي." };
+    if (item.itemType === "stock_product" && item.productId && quantity > 0) {
+      const result = applyProductStockMovement({
+        productId: item.productId,
+        branchId: transfer.destinationLocationId,
+        quantity,
+        type: "transfer_receive",
+        reference: transfer.transferNumber,
+        reason: "استلام تحويل مخزون",
+        performedByEmployeeId: actor,
+        idempotencyKey: `receive-${transfer.id}-${item.id}`,
+        unitCost: Number(
+          getInventorySnapshot().balances.find(
+            (value) =>
+              value.productId === item.productId &&
+              value.branchId === transfer.sourceLocationId,
+          )?.averageCost ?? 0,
+        ),
+      });
+      if (!result.valid) return result;
+    }
+    if (item.itemType === "rental_asset" && item.rentalAssetId && quantity > 0)
+      setRentalAssetTransferLocation(
+        item.rentalAssetId,
+        "receive",
+        transfer.destinationLocationId,
+        `استلام ${transfer.transferNumber}`,
+      );
+    if (quantity !== item.quantityDispatched)
+      differences.push({
+        id: `difference-${sequence++}`,
+        transferItemId: item.id,
+        kind: quantity < item.quantityDispatched ? "shortage" : "surplus",
+        quantity: Math.abs(item.quantityDispatched - quantity),
+        reason: differenceReason,
+        decision: "",
+        reviewedByEmployeeId: null,
+        reviewedAt: null,
+      });
+  }
+  if (transfer.relatedMaintenanceOrderId)
+    updateWorkshopTransfer(
+      transfer.relatedMaintenanceOrderId,
+      transfer.transferType === "maintenance_return"
+        ? "return_branch"
+        : transfer.destinationLocationId === "workshop"
+          ? "receive"
+          : "return_branch",
+      actor,
+    );
+  const status: TransferStatus = differences.length
+    ? "difference_review"
+    : "completed";
+  replace(id, (item) => ({
+    ...item,
+    status,
+    receivedByEmployeeId: actor,
+    receivedAt: now,
+    items: item.items.map((line) => ({
+      ...line,
+      quantityReceived: received[line.id] ?? 0,
+      conditionAtReceipt: conditions[line.id] ?? "سليم",
+    })),
+    differences,
+    events: [
+      event(
+        item,
+        "received",
+        actor,
+        status,
+        differences.length ? differenceReason : "استلام كامل",
+      ),
+      ...item.events,
+    ],
+    updatedAt: now,
+  }));
+  if (status === "completed" && transfer.relatedBranchNeedId)
+    completeBranchNeedFromTransfer(transfer.relatedBranchNeedId, transfer.id);
+  return {
+    valid: true,
+    message: differences.length
+      ? "تم تسجيل الاستلام والفروقات وتنتظر مراجعة الإدارة."
+      : "تم الاستلام الكامل وإكمال التحويل.",
+  };
+}
+export function resolveTransferDifferences(
+  id: string,
+  roles: readonly RoleId[],
+  actor: string,
+  decision: "accept_loss" | "return_to_source",
+  reason: string,
+) {
+  const transfer = transfers.find((item) => item.id === id);
+  if (!transfer || transfer.status !== "difference_review")
+    return { valid: false, message: "لا توجد فروقات قيد المراجعة." };
+  if (!isTransferAdmin(roles))
+    return { valid: false, message: "مراجعة الفروقات متاحة للإدارة فقط." };
+  if (!reason.trim())
+    return { valid: false, message: "سبب قرار الفرق إلزامي." };
+  if (decision === "return_to_source")
+    for (const difference of transfer.differences) {
+      const item = transfer.items.find(
+        (line) => line.id === difference.transferItemId,
+      );
+      if (item?.productId && difference.kind === "shortage")
+        applyProductStockMovement({
+          productId: item.productId,
+          branchId: transfer.sourceLocationId,
+          quantity: difference.quantity,
+          type: "adjustment_in",
+          reference: transfer.transferNumber,
+          reason,
+          performedByEmployeeId: actor,
+          idempotencyKey: `difference-${transfer.id}-${difference.id}`,
+        });
+    }
+  replace(id, (item) => ({
+    ...item,
+    status: "completed",
+    differences: item.differences.map((value) => ({
+      ...value,
+      decision,
+      reviewedByEmployeeId: actor,
+      reviewedAt: now,
+    })),
+    events: [
+      event(item, "difference_reviewed", actor, "completed", reason),
+      ...item.events,
+    ],
+    updatedAt: now,
+  }));
+  if (transfer.relatedBranchNeedId)
+    completeBranchNeedFromTransfer(transfer.relatedBranchNeedId, transfer.id);
+  return { valid: true, message: "تم اعتماد قرار الفروقات وإكمال التحويل." };
+}
+export function cancelTransfer(
+  id: string,
+  roles: readonly RoleId[],
+  actor: string,
+  reason: string,
+) {
+  const transfer = transfers.find((item) => item.id === id);
+  if (
+    transfer &&
+    !isTransferAdmin(roles) &&
+    transfer.requestedByEmployeeId !== actor
+  )
+    return { valid: false, message: "لا يمكنك إلغاء طلب أنشأه موظف آخر." };
+  if (
+    transfer &&
+    (isSalesBranchRequester(roles) || isRentalBranchOperator(roles)) &&
+    !["requested", "pending_approval"].includes(transfer.status)
+  )
+    return {
+      valid: false,
+      message: "بعد الاعتماد يتولى المدير أو مسؤول المخزون إلغاء الطلب.",
+    };
+  if (
+    !transfer ||
+    ["completed", "cancelled", "rejected"].includes(transfer.status)
+  )
+    return { valid: false, message: "لا يمكن إلغاء هذا التحويل." };
+  if (!reason.trim()) return { valid: false, message: "سبب الإلغاء إلزامي." };
+  if (transfer.status === "in_transit" && !isTransferAdmin(roles))
+    return { valid: false, message: "إلغاء تحويل مرسل يحتاج الإدارة." };
+  if (transfer.status === "in_transit")
+    for (const item of transfer.items) {
+      if (item.productId)
+        applyProductStockMovement({
+          productId: item.productId,
+          branchId: transfer.sourceLocationId,
+          quantity: item.quantityDispatched,
+          type: "transfer_receive",
+          reference: transfer.transferNumber,
+          reason: `عكس إرسال: ${reason}`,
+          performedByEmployeeId: actor,
+          idempotencyKey: `cancel-${transfer.id}-${item.id}`,
+        });
+      if (item.rentalAssetId)
+        setRentalAssetTransferLocation(
+          item.rentalAssetId,
+          "receive",
+          transfer.sourceLocationId,
+          `إلغاء ${transfer.transferNumber}`,
+        );
+    }
+  replace(id, (item) => ({
+    ...item,
+    status: "cancelled",
+    cancelledAt: now,
+    cancellationReason: reason,
+    events: [
+      event(item, "cancelled", actor, "cancelled", reason),
+      ...item.events,
+    ],
+    updatedAt: now,
+  }));
+  if (transfer.relatedBranchNeedId)
+    unlinkBranchNeedTransfer(transfer.relatedBranchNeedId, transfer.id);
+  return { valid: true, message: "تم إلغاء التحويل مع الحفاظ على السجل." };
+}
+export function resetTransferStore() {
+  transfers = TRANSFER_FIXTURES.map(clone);
+  sequence = 100;
+  removeLocalTestData(STORAGE_KEY);
+  emit(false);
+}

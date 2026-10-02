@@ -1,4 +1,3 @@
-import { resolveBranchIds } from "@/permissions/resolve-permissions";
 import type { RoleId } from "@/permissions/types";
 import type { Branch, BranchAccess } from "./types";
 
@@ -17,8 +16,8 @@ export function resolveBranchAccess(roles: readonly RoleId[]): BranchAccess {
 }
 
 export function scopeBranches(branches: readonly Branch[], roles: readonly RoleId[]) {
-  const branchIds = resolveBranchIds(roles);
-  return branchIds === "all" ? [...branches] : [];
+  const access = resolveBranchAccess(roles);
+  return access.canManage ? [...branches] : [];
 }
 
 export function canAccessBranch(branch: Branch, roles: readonly RoleId[]) {

@@ -1,1 +1,1 @@
-"use client";import{useSyncExternalStore}from"react";import{getShiftSnapshot,subscribeShiftStore}from"../services/shift-store";export function useShifts(){return useSyncExternalStore(subscribeShiftStore,getShiftSnapshot,getShiftSnapshot)}
+"use client";import{useSyncExternalStore}from"react";import{getShiftSnapshot,subscribeShiftStore}from"../services/shift-store";const EMPTY={shifts:[]};export function useShifts(){return useSyncExternalStore(subscribeShiftStore,getShiftSnapshot,()=>EMPTY)}

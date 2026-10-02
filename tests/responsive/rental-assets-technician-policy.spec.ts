@@ -3,7 +3,6 @@ import { expect, test, type Page } from "@playwright/test";
 async function switchToTechnician(page: Page) {
   await page.getByRole("button", { name: /معاينة/ }).click();
   await page.getByRole("checkbox", { name: "فني الصيانة", exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
 }
 
 test("technician cannot see or open rental assets", async ({ page }) => {
@@ -23,8 +22,7 @@ test("rental maintenance employee keeps rental asset access", async ({ page }) =
   await page.goto("/dashboard");
   await page.getByRole("button", { name: /معاينة/ }).click();
   await page.getByRole("checkbox", { name: "موظف التأجير واستلام الصيانة", exact: true }).click();
-  await page.getByRole("checkbox", { name: "مالك النشاط", exact: true }).click();
   await expect(page.locator(".sidebar").getByRole("link", { name: "أصول التأجير", exact: true })).toBeVisible();
   await page.locator(".sidebar").getByRole("link", { name: "أصول التأجير", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "أصول التأجير" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "أصول التأجير", level: 2 })).toBeVisible();
 });
